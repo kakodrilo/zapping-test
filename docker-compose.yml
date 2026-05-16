@@ -1,9 +1,26 @@
 services:
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: livestream_gateway
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+      - "${APP_PORT:-8080}:8080"
+      - "${PMA_PORT:-8081}:8081"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+      - frontend
+      - phpmyadmin
+    networks:
+      - livestream_network
+    restart: always
+
   app:
     build: .
     container_name: livestream_app
-    ports:
-      - "${APP_PORT}:8080"
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -27,8 +44,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: livestream_frontend
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
     networks:
       - livestream_network
     restart: always
@@ -74,8 +89,6 @@ services:
     image: phpmyadmin:latest
     container_name: livestream_admin
     restart: always
-    ports:
-      - "${PMA_PORT}:80"
     environment:
       PMA_HOST: db
       PMA_USER: root
