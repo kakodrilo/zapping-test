@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player - Zapping</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+  <style>
+    body { background: #0d1117; color: #e6edf3; }
+    .navbar { background: #161b22; border-bottom: 1px solid #30363d; }
+    video { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 16/9; }
+    .stream-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      border-radius: 6px;
+    }
+    .stream-card:hover { border-color: #58a6ff; }
+    .stream-card.active { border-color: #1f6feb; background: #1c2a3a; }
+    .badge-live {
+      background: #da3633;
+      color: #fff;
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar px-4 py-2 d-flex justify-content-between align-items-center">
+    <span class="fw-bold fs-5">Zapping Live</span>
+    <button id="logoutBtn" class="btn btn-sm btn-outline-secondary">Salir</button>
+  </nav>
+
+  <div class="container py-4">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <video id="video" controls autoplay muted playsinline></video>
+        <div class="mt-3">
+          <h5 id="streamTitle" class="mb-1">Seleccioná un canal</h5>
+          <p id="streamDesc" class="text-secondary small mb-0"></p>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <h6 class="text-secondary mb-3 text-uppercase" style="font-size:.75rem; letter-spacing:.05em;">Canales disponibles</h6>
+        <div id="streamList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login.html';
+
+    let hls = null;
+    let streams = [];
+
+    // Refresh silencioso cada 50 minutos
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/refresh', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('token', data.token);
+        } else {
+          redirectLogin();
+        }
+      } catch (_) {}
+    }, 50 * 60 * 1000);
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
+    });
+
+    async function loadStreams() {
+      try {
+        const res = await fetch('/api/streams', {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (res.status === 401) { redirectLogin(); return; }
+
+        streams = await res.json();
+        renderStreamList();
+
+        if (streams.length > 0) {
+          playStream(streams[0]);
+        }
+      } catch (_) {
+        console.error('Error loading streams');
+      }
+    }
+
+    function renderStreamList() {
+      const list = document.getElementById('streamList');
+      list.innerHTML = '';
+      streams.forEach((s, idx) => {
+        const card = document.createElement('div');
+        card.id = 'card-' + s.id;
+        card.className = 'stream-card p-3 mb-2';
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">${s.title}</span>
+            <span class="badge-live">EN VIVO</span>
+          </div>
+          <div class="text-secondary small mt-1">${s.description || ''}</div>
+        `;
+        card.addEventListener('click', () => playStream(s));
+        list.appendChild(card);
+      });
+    }
+
+    function playStream(s) {
+      document.getElementById('streamTitle').textContent = s.title;
+      document.getElementById('streamDesc').textContent = s.description || '';
+
+      document.querySelectorAll('.stream-card').forEach(el => el.classList.remove('active'));
+      const activeCard = document.getElementById('card-' + s.id);
+      if (activeCard) activeCard.classList.add('active');
+
+      const video = document.getElementById('video');
+      if (hls) { hls.destroy(); hls = null; }
+
+      const playlistUrl = '/stream/' + s.id + '/playlist.m3u8';
+
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          xhrSetup: function(xhr) {
+            xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+          },
+          liveSyncDurationCount: 3,
+          liveMaxLatencyDurationCount: 5,
+        });
+        hls.loadSource(playlistUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+        hls.on(Hls.Events.ERROR, function(_, data) {
+          if (data.response && data.response.code === 401) redirectLogin();
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playlistUrl;
+        video.play().catch(() => {});
+      }
+    }
+
+    function redirectLogin() {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
+    }
+
+    loadStreams();
+  </script>
+</body>
+</html>

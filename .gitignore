@@ -24,9 +24,18 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
-.env
-
 # Editor/IDE
 # .idea/
-# .vscode/
+.vscode/
+
+# Ignorar archivo de secretos
+.env
+
+# Ignorar la carpeta de datos de la BD (no queremos subir gigas de datos a Git)
+mysql_data/
+
+# Segmentos de video (deben copiarse manualmente antes del build)
+segments/
+
+# Ignorar archivos del sistema
+.DS_Store
