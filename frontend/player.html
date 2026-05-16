@@ -50,6 +50,7 @@
     </div>
   </div>
 
+  <script src="/config.js"></script>
   <script>
     const token = localStorage.getItem('token');
     if (!token) window.location.href = '/login.html';
@@ -60,7 +61,7 @@
     // Refresh silencioso cada 50 minutos
     setInterval(async () => {
       try {
-        const res = await fetch('/api/refresh', {
+        const res = await fetch(`${window.API_BASE}/api/refresh`, {
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
         });
         if (res.ok) {
@@ -79,7 +80,7 @@
 
     async function loadStreams() {
       try {
-        const res = await fetch('/api/streams', {
+        const res = await fetch(`${window.API_BASE}/api/streams`, {
           headers: { 'Authorization': 'Bearer ' + token },
         });
         if (res.status === 401) { redirectLogin(); return; }
@@ -125,7 +126,7 @@
       const video = document.getElementById('video');
       if (hls) { hls.destroy(); hls = null; }
 
-      const playlistUrl = '/stream/' + s.id + '/playlist.m3u8';
+      const playlistUrl = `${window.API_BASE}/stream/${s.id}/playlist.m3u8`;
 
       if (Hls.isSupported()) {
         hls = new Hls({

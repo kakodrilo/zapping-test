@@ -54,11 +54,6 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/login.html", http.StatusFound)
-	})
-	mux.Handle("/", http.FileServer(http.Dir("./frontend")))
-
 	mux.HandleFunc("POST /api/register", authH.Register)
 	mux.HandleFunc("POST /api/login", authH.Login)
 	mux.HandleFunc("GET /api/refresh", auth(authH.Refresh))
@@ -66,10 +61,15 @@ func main() {
 	mux.HandleFunc("GET /stream/{id}/playlist.m3u8", auth(streamH.Playlist))
 	mux.HandleFunc("GET /stream/{id}/segments/{file}", auth(streamH.Segment))
 
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+	if corsOrigin == "" {
+		corsOrigin = "*"
+	}
+
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"
 	}
 	log.Printf("server listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	log.Fatal(http.ListenAndServe(":"+port, handler.CORSMiddleware(corsOrigin, mux)))
 }

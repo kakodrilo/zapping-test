@@ -39,6 +39,7 @@
     </p>
   </div>
 
+  <script src="/config.js"></script>
   <script>
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -52,7 +53,7 @@
       };
 
       try {
-        const res = await fetch('/api/register', {
+        const res = await fetch(`${window.API_BASE}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),

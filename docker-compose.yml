@@ -12,6 +12,7 @@ services:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - JWT_SECRET=${JWT_SECRET}
       - MEDIA_SERVER_URL=${MEDIA_SERVER_URL}
+      - CORS_ORIGIN=${CORS_ORIGIN}
     depends_on:
       db:
         condition: service_healthy
@@ -20,6 +21,17 @@ services:
     networks:
       - livestream_network
     restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: livestream_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - livestream_network
+    restart: always
 
   nginx:
     build:

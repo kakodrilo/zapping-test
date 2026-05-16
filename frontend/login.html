@@ -36,6 +36,7 @@
     </p>
   </div>
 
+  <script src="/config.js"></script>
   <script>
     if (localStorage.getItem('token')) {
       window.location.href = '/player.html';
@@ -52,7 +53,7 @@
       };
 
       try {
-        const res = await fetch('/api/login', {
+        const res = await fetch(`${window.API_BASE}/api/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
