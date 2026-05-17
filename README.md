@@ -312,13 +312,41 @@ Con `MaxOpenConns(10)`, el peor caso es 10 conexiones × ~400 KB de buffers por 
 
 ### Paso 1 — Certificados TLS
 
+Requiere `openssl`. Ejecutar desde la **raíz del proyecto** según el sistema operativo:
+
+**Linux / macOS:**
 ```bash
-cd certs
-bash generate.sh
-cd ..
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/key.pem \
+  -out    certs/cert.pem \
+  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
 ```
 
-Genera `cert.pem` y `key.pem` autofirmados. El navegador mostrará advertencia de seguridad la primera vez — aceptar y continuar.
+**Windows — Git Bash** (viene con [Git for Windows](https://git-scm.com/download/win)):
+```bash
+MSYS_NO_PATHCONV=1 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/key.pem \
+  -out    certs/cert.pem \
+  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+```
+
+**Windows — WSL:**
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/key.pem \
+  -out    certs/cert.pem \
+  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+```
+
+**Windows — sin Git Bash ni WSL** (usando Docker directamente):
+```powershell
+docker run --rm -v "${PWD}/certs:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/key.pem -out /certs/cert.pem -subj "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+```
+
+Genera `certs/cert.pem` y `certs/key.pem`. El navegador mostrará advertencia de seguridad la primera vez — aceptar y continuar.
 
 ### Paso 2 — Variables de entorno
 
@@ -387,7 +415,7 @@ Los scripts SQL en `database/init_db/` son ejecutados automáticamente por MySQL
 ### Paso 5 — Levantar
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 El orden de arranque es:
