@@ -6,537 +6,475 @@
   <title>Player — ANTENA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+  <script src="antena.js"></script>
+  <link rel="stylesheet" href="antena.css" />
   <style>
-    :root {
-      --bg:       #EFEAE0;
-      --surface:  #FFFFFF;
-      --surface2: #E5DFD2;
-      --fg:       #0E0E10;
-      --muted:    #6B6258;
-      --line:     rgba(14,14,16,0.16);
-      --rule:     #0E0E10;
-      --accent:   #005F66;
-      --live:     #C8311F;
-      --sidebar:  340px;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0;
-      height: 100vh; width: 100vw;
-      background: var(--bg); color: var(--fg);
-      font-family: 'Manrope', sans-serif;
-      -webkit-font-smoothing: antialiased;
-      overflow: hidden;
-    }
-    button { font: inherit; }
-    .hidden { display: none !important; }
+    body { overflow: auto; }
 
-    /* ── Top-level grid ──────────────────────────────────────── */
     .app {
-      display: grid;
-      grid-template-rows: 52px 1fr;
-      height: 100vh; width: 100vw;
-      transition: grid-template-rows 0.3s cubic-bezier(.4,.0,.2,1);
+      --sidebar: 280px;
+      --nav-h:   48px;
+      display: grid; grid-template-rows: var(--nav-h) 1fr;
+      width: 100vw;
+      transition: grid-template-rows 0.28s ease;
     }
-    .body-grid {
+    .app.collapsed  { --sidebar: 60px; }
+    .app.fullscreen { --nav-h: 0px; --sidebar: 0px; }
+
+    /* ── Top nav ──────────────────────────────────────────────── */
+    .nav {
+      background: var(--surface); border-bottom: 1px solid var(--line);
+      padding: 0 16px;
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .app.fullscreen .nav { display: none; }
+    .nav .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 17px; font-weight: 800; letter-spacing: -0.01em;
+      color: var(--fg-bright);
+    }
+    .nav .brand .glyph { color: var(--accent); font-size: 18px; }
+    .nav .actions { display: flex; align-items: center; gap: 6px; }
+    .nav .sep { width: 1px; height: 24px; background: var(--line); margin: 0 6px; }
+    .nav-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 8px; border-radius: 4px;
+      display: flex; transition: background 0.12s, color 0.12s;
+    }
+    .nav-btn:hover { background: var(--surface3); color: var(--fg-bright); }
+    .nav-btn .icon-sun  { display: inline; }
+    .nav-btn .icon-moon { display: none; }
+    html[data-theme="claro"] .nav-btn .icon-sun  { display: none; }
+    html[data-theme="claro"] .nav-btn .icon-moon { display: inline; }
+    .user-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 10px 4px 4px; border-radius: 999px;
+      background: var(--surface2);
+    }
+    .user-chip .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+    .user-chip .name { font-size: 13px; font-weight: 500; color: var(--fg); }
+
+    /* ── Body grid ────────────────────────────────────────────── */
+    .body {
       display: grid;
       grid-template-columns: var(--sidebar) 1fr;
-      overflow: hidden;
+      height: 100%;
       transition: grid-template-columns 0.28s cubic-bezier(.4,.0,.2,1);
     }
-    .app.collapsed { --sidebar: 72px; }
-    .app.fullscreen { --sidebar: 0px; grid-template-rows: 0 1fr; }
 
-    /* ── Masthead ─────────────────────────────────────────────── */
-    .masthead {
-      display: grid;
-      grid-template-columns: var(--sidebar) 1fr auto;
-      align-items: center;
-      padding: 0 28px;
-      border-bottom: 1.5px solid var(--rule);
-      background: var(--bg);
-      gap: 24px; overflow: hidden;
-      transition: grid-template-columns 0.28s cubic-bezier(.4,.0,.2,1);
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; overflow: hidden;
     }
-    .masthead .wordmark {
-      font-family: 'Instrument Serif', serif;
-      font-size: 30px; line-height: 1;
-      white-space: nowrap; overflow: hidden;
-    }
-    .masthead .wordmark .dot { color: var(--accent); }
-    .masthead .wordmark .short { color: var(--accent); }
-    .app.collapsed .masthead .wordmark .long { display: none; }
-    .app:not(.collapsed) .masthead .wordmark .short { display: none; }
-
-    .masthead .center {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-      display: flex; justify-content: center; gap: 16px; align-items: center;
-    }
-    .masthead .center .dot-sep { opacity: 0.5; }
-    .masthead .live-strip {
-      color: var(--live); display: flex; align-items: center; gap: 6px;
-    }
-    .masthead .live-strip .dot {
-      width: 6px; height: 6px; background: var(--live); border-radius: 50%;
-      animation: live-pulse 2s ease-in-out infinite;
-    }
-    @keyframes live-pulse {
-      0%, 100% { opacity: 1; }
-      50%      { opacity: 0.35; }
-    }
-    .masthead .right {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      display: flex; align-items: center; gap: 12px;
-    }
-    .masthead .right .email { opacity: 0.7; }
-    .mono-btn {
-      background: transparent;
-      border: 1px solid var(--rule);
-      padding: 6px 10px; cursor: pointer; color: var(--fg);
-      display: inline-flex; align-items: center; gap: 6px;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.16em; text-transform: uppercase;
-      transition: background 0.15s;
-    }
-    .mono-btn:hover { background: var(--surface); }
-
-    /* ── Sidebar ─────────────────────────────────────────────── */
-    aside.sidebar {
-      border-right: 1.5px solid var(--rule);
-      overflow: hidden;
-      display: flex; flex-direction: column;
-    }
+    .app.fullscreen .sidebar { display: none; }
     .sidebar-header {
-      padding: 20px 24px 14px;
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
       display: flex; justify-content: space-between; align-items: center;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--muted);
-      border-bottom: 1px solid var(--line);
     }
-    .app.collapsed .sidebar-header { padding: 20px 0 14px; justify-content: center; }
-    .app.collapsed .sidebar-header .title { display: none; }
+    .app.collapsed .sidebar-header { padding: 12px 0; justify-content: center; }
+    .app.collapsed .sidebar-header .header-info { display: none; }
+    .sidebar-header .label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .sidebar-header .count {
+      display: flex; align-items: center; gap: 6px; margin-top: 4px;
+      font-size: 13px; font-weight: 600; color: var(--fg-bright);
+    }
     .toggle-btn {
-      background: transparent; border: 1px solid var(--rule);
-      padding: 4px 6px; cursor: pointer; color: var(--fg);
-      display: flex; align-items: center;
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 6px; border-radius: 4px; display: flex;
+      transition: background 0.12s, color 0.12s;
     }
+    .toggle-btn:hover { background: var(--surface3); color: var(--fg-bright); }
     .toggle-btn svg {
-      transition: transform 0.28s cubic-bezier(.4,.0,.2,1);
       transform: rotate(180deg);
+      transition: transform 0.25s ease;
     }
     .app.collapsed .toggle-btn svg { transform: rotate(0deg); }
 
-    .channel-list { flex: 1; overflow-y: auto; }
-    .channel-list::-webkit-scrollbar { width: 8px; }
-    .channel-list::-webkit-scrollbar-thumb { background: var(--line); }
+    .channel-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .app.collapsed .channel-list { padding: 8px 0; }
 
     .channel-card {
       position: relative;
-      display: grid; grid-template-columns: 44px 1fr;
-      gap: 14px; padding: 14px 24px 14px 22px;
-      border-bottom: 1px solid var(--line);
-      cursor: pointer;
-      transition: background 0.15s;
+      padding: 10px 12px; margin-bottom: 2px;
+      display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+      align-items: center;
+      border-radius: 6px; cursor: pointer;
+      transition: background 0.12s;
     }
-    .channel-card:hover { background: var(--surface2); }
-    .channel-card.active { background: var(--surface); }
-    .channel-card.active::before {
-      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-      width: 2px; background: var(--accent);
+    .channel-card:hover { background: var(--surface3); }
+    .channel-card.active { background: var(--accent-soft); }
+    .channel-card .thumb {
+      width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+      position: relative; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 11px; font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
-    .channel-num {
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 32px; line-height: 0.95; color: var(--fg);
+    .channel-card .info { min-width: 0; }
+    .channel-card .title {
+      font-size: 14px; font-weight: 600; color: var(--fg);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .channel-card.active .channel-num { color: var(--accent); }
-    .channel-info { min-width: 0; }
-    .channel-title {
-      font-family: 'Manrope', sans-serif; font-size: 13px;
-      font-weight: 600; letter-spacing: -0.005em;
-      text-transform: uppercase; color: var(--fg); margin-bottom: 4px;
+    .channel-card.active .title { color: var(--fg-bright); }
+    .channel-card .desc {
+      font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .channel-desc {
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 14px; line-height: 1.25; color: var(--muted);
-      display: -webkit-box; -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical; overflow: hidden;
+    .channel-card.active::after {
+      content: ''; width: 8px; height: 8px; background: var(--live);
+      border-radius: 50%; animation: pulse 2s ease-in-out infinite;
     }
     .app.collapsed .channel-card {
-      grid-template-columns: 1fr; padding: 14px 0;
-      justify-items: center; gap: 4px;
+      grid-template-columns: 1fr;
+      padding: 8px 0; margin: 4px 8px;
+      justify-items: center;
     }
-    .app.collapsed .channel-info { display: none; }
-    .app.collapsed .channel-num { font-size: 26px; }
+    .app.collapsed .channel-card .info,
+    .app.collapsed .channel-card::after { display: none; }
+    .app.collapsed .channel-card.active::before {
+      content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+      width: 4px; height: 24px; background: var(--accent); border-radius: 0 2px 2px 0;
+    }
 
-    .empty-list {
-      padding: 32px 24px; color: var(--muted);
-      font-family: 'Instrument Serif', serif; font-style: italic; font-size: 16px;
+    .empty-state {
+      padding: 24px 16px; color: var(--muted); font-size: 13px;
     }
 
-    /* ── Main column ─────────────────────────────────────────── */
-    main.main {
-      padding: 24px 36px;
-      display: flex; flex-direction: column; gap: 18px;
-      overflow: hidden; position: relative;
-      transition: padding 0.28s cubic-bezier(.4,.0,.2,1);
+    /* ── Stage ────────────────────────────────────────────────── */
+    .stage {
+      background: var(--bg); overflow: auto;
+      padding: 24px 32px;
+      display: flex; flex-direction: column; gap: 20px;
     }
-    .app.fullscreen main.main { padding: 0; gap: 0; }
-    .section-line {
-      display: flex; justify-content: space-between; align-items: baseline;
-      padding-bottom: 10px; border-bottom: 1px solid var(--line);
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase;
-    }
-    .section-line .ch-label { color: var(--muted); }
-    .app.fullscreen .section-line,
-    .app.fullscreen .controls,
-    .app.fullscreen .caption { display: none; }
+    .app.fullscreen .stage { padding: 0; gap: 0; overflow: hidden; }
 
-    /* Video frame */
+    /* Video wrap — 16:9 strict + fits within viewport */
     .video-wrap {
-      position: relative; background: #000;
-      border: 1.5px solid var(--rule);
-      flex: 0 0 auto;
-      width: 100%;
-      max-width: 900px;
+      position: relative; width: 100%;
       aspect-ratio: 16 / 9;
+      max-height: calc(100vh - var(--nav-h) - 48px);
+      max-width: calc((100vh - var(--nav-h) - 48px) * 16 / 9);
+      margin: 0 auto;
+      border-radius: 12px; overflow: hidden;
+      background: #000; flex-shrink: 0;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.32), 0 4px 12px rgba(0,0,0,0.16);
     }
     .app.fullscreen .video-wrap {
-      border: none; max-width: none; flex: 1 1 auto; aspect-ratio: auto;
+      max-height: none; max-width: none; aspect-ratio: auto;
+      width: 100vw; height: 100vh; border-radius: 0; box-shadow: none; margin: 0;
     }
     .video-wrap video {
-      width: 100%; height: 100%; display: block; background: #000;
-      object-fit: contain;
+      width: 100%; height: 100%;
+      display: block; background: #000; object-fit: contain;
     }
-    .ch-badge {
-      position: absolute; top: 14px; left: 14px;
-      background: var(--bg); color: var(--fg);
-      padding: 5px 10px; border: 1px solid var(--rule);
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.20em; text-transform: uppercase;
+
+    /* Top-left overlay badges */
+    .badges {
+      position: absolute; top: 16px; left: 16px;
       display: flex; align-items: center; gap: 8px;
+      pointer-events: none;
     }
-    .ch-badge .dot { color: var(--live); }
-    .frame-title {
-      position: absolute; bottom: 14px; left: 14px;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase;
-      color: #fff; opacity: 0.85; mix-blend-mode: difference;
+    .badge-live {
+      background: var(--live); color: #fff;
+      padding: 4px 10px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      display: inline-flex; align-items: center; gap: 6px;
     }
-
-    /* Pause overlay */
-    .pause-overlay {
-      position: absolute; inset: 0;
-      background: rgba(0,0,0,0.55);
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; pointer-events: none;
+    .badge-live .dot {
+      width: 7px; height: 7px; background: #fff; border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
     }
-    .pause-overlay .glyph { font-size: 64px; line-height: 1; margin-bottom: 8px; text-align: center; }
-    .pause-overlay .label {
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      letter-spacing: 0.22em; text-align: center;
+    .badge-channel {
+      background: rgba(0,0,0,0.55); color: #fff;
+      padding: 4px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+      backdrop-filter: blur(4px);
     }
 
+    /* Loading overlay */
     .loading-overlay {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      color: #fff; pointer-events: none;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      letter-spacing: 0.22em; text-transform: uppercase;
+      color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+      pointer-events: none;
     }
     .loading-overlay::before {
       content: ''; width: 10px; height: 10px; background: #fff;
       border-radius: 50%; margin-right: 12px;
-      animation: live-pulse 1s ease-in-out infinite;
+      animation: pulse 1s ease-in-out infinite;
     }
 
-    /* Controls */
+    /* Pause overlay */
+    .pause-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+    .pause-btn {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: var(--accent); color: #fff; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: transform 0.15s;
+    }
+    .pause-btn:hover { transform: scale(1.06); }
+
+    /* Floating controls */
     .controls {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px;
-      border: 1.5px solid var(--rule); border-top: none;
-      margin-top: -18px; background: var(--bg);
-      width: 100%; max-width: 900px;
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 20px 16px 16px;
+      background: linear-gradient(180deg, transparent, rgba(0,0,0,0.75));
+      display: flex; align-items: center; gap: 10px;
+      opacity: 0; transition: opacity 0.18s; pointer-events: none;
     }
+    .video-wrap:hover .controls,
+    .video-wrap.paused .controls { opacity: 1; pointer-events: auto; }
+
+    /* Fullscreen: cursor y controles ocultos hasta que el mouse se mueva */
+    .app.fullscreen .video-wrap { cursor: none; }
+    .app.fullscreen .video-wrap.show-controls,
+    .app.fullscreen .video-wrap.paused { cursor: default; }
+    .app.fullscreen .video-wrap:hover .controls { opacity: 0; pointer-events: none; }
+    .app.fullscreen .video-wrap.show-controls .controls,
+    .app.fullscreen .video-wrap.paused .controls { opacity: 0.8; pointer-events: auto; }
     .ctrl {
-      background: transparent; color: var(--fg);
-      border: 1px solid var(--rule);
-      padding: 8px 10px; display: flex; cursor: pointer;
+      background: rgba(255,255,255,0.12); color: #fff;
+      border: none; border-radius: 4px; padding: 8px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+      transition: background 0.12s, transform 0.1s;
     }
-    .ctrl:hover { background: var(--surface); }
-    .ctrl.primary {
-      background: var(--fg); color: var(--bg); border: none;
-    }
-    .ctrl.primary:hover { background: #2a2a30; }
-
-    /* Volume group: button + slider on hover */
-    .volume-group {
-      display: flex; align-items: center; gap: 4px;
-    }
-    .volume-slider-wrap {
-      display: flex; align-items: center;
-      width: 0; overflow: hidden; opacity: 0;
-      transition: width 0.18s ease, opacity 0.18s ease;
-    }
-    .volume-group:hover .volume-slider-wrap,
-    .volume-group:focus-within .volume-slider-wrap {
-      width: 76px; opacity: 1;
-    }
+    .ctrl:hover  { background: rgba(255,255,255,0.22); }
+    .ctrl:active { transform: scale(0.94); }
     .volume {
-      width: 72px; accent-color: var(--accent); cursor: pointer;
+      width: 100px; accent-color: #fff; cursor: pointer;
+    }
+    .pill-hd {
+      color: #fff; font-size: 12px; font-weight: 600; opacity: 0.85;
+      background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 4px;
+    }
+    .spacer { flex: 1; }
+
+    /* ── Channel info card ────────────────────────────────────── */
+    .info-card {
+      background: var(--surface2); border-bottom: 1px solid var(--line);
+      padding: 14px 16px; flex-shrink: 0;
+      height: 100px; overflow: hidden;
+    }
+    .app.collapsed .info-card { display: none; }
+    .info-card .meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    .info-card .meta .live {
+      color: var(--live); display: flex; align-items: center; gap: 5px;
+    }
+    .info-card .meta .live .dot {
+      width: 6px; height: 6px; background: var(--live); border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .info-card h2 {
+      font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
+      color: var(--fg-bright); margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .info-card p {
+      margin: 4px 0 0; font-size: 12px; color: var(--muted);
+      line-height: 1.45;
     }
 
-    .live-tag {
-      margin-left: auto; display: flex; align-items: center; gap: 18px;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase;
+    /* ── Zapping (smooth accent chip) ────────────────────────── */
+    @keyframes zap-overlay {
+      0%   { opacity: 0; backdrop-filter: blur(0); }
+      18%  { opacity: 1; backdrop-filter: blur(12px); }
+      75%  { opacity: 1; backdrop-filter: blur(12px); }
+      100% { opacity: 0; backdrop-filter: blur(0); }
     }
-    .live-tag .live {
-      color: var(--live); display: flex; align-items: center; gap: 6px;
+    @keyframes zap-chip {
+      0%   { transform: scale(0.86); opacity: 0; }
+      15%  { transform: scale(1.04); opacity: 1; }
+      30%  { transform: scale(1); }
+      80%  { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.96); opacity: 0; }
     }
-    .live-tag .live .dot {
-      width: 7px; height: 7px; background: var(--live); border-radius: 50%;
-      animation: live-pulse 2s ease-in-out infinite;
-    }
-    .live-tag .live.paused { color: var(--muted); }
-    .live-tag .live.paused .dot { background: var(--muted); animation: none; }
-
-    /* Editorial caption */
-    .caption {
-      display: grid; grid-template-columns: 160px 1fr; gap: 32px;
-      padding-top: 8px; align-items: start;
-    }
-    .caption .num {
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 160px; line-height: 0.78; color: var(--accent);
-    }
-    .caption h1 {
-      font-family: 'Instrument Serif', serif; font-size: 52px; line-height: 0.95;
-      margin: 0; font-weight: 400; letter-spacing: -0.02em;
-      text-transform: capitalize;
-    }
-    .caption h1 .dot { color: var(--accent); }
-    .caption p {
-      margin-top: 14px; margin-bottom: 0;
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 24px; line-height: 1.3; color: var(--fg); max-width: 720px;
-    }
-
-    /* ── Zapping glitch overlay ─────────────────────────────── */
     .zap-overlay {
-      position: absolute; inset: 0; overflow: hidden;
-      pointer-events: none; z-index: 10;
-      animation: zap-fade 420ms cubic-bezier(.2,.7,.3,1) forwards;
+      position: absolute; inset: 0; pointer-events: none;
+      background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      animation: zap-overlay 350ms cubic-bezier(.2,.7,.3,1) forwards;
+      z-index: 10;
     }
-    .zap-overlay .flash {
-      position: absolute; inset: 0; background: #fff;
-      animation: zap-flash 420ms steps(6, end) forwards;
+    .zap-chip {
+      background: var(--accent); color: #fff;
+      border-radius: 999px; padding: 12px 22px;
+      font-size: 16px; font-weight: 700;
+      box-shadow: 0 8px 32px rgba(88,101,242,0.4);
+      animation: zap-chip 350ms cubic-bezier(.2,.7,.3,1) forwards;
+      display: inline-flex; align-items: center; gap: 10px;
     }
-    .zap-overlay .band {
-      position: absolute; left: 0; right: 0;
-      animation: zap-band 420ms steps(8, end) forwards;
-      mix-blend-mode: screen;
-    }
-    .zap-overlay .band.b1 { top: 18%; height: 22px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0 6px, transparent 6px 14px); }
-    .zap-overlay .band.b2 { top: 42%; height: 56px; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0 1px, rgba(0,0,0,0.5) 1px 3px); }
-    .zap-overlay .band.b3 { top: 67%; height: 22px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0 6px, transparent 6px 14px); }
-    .zap-overlay .band.b4 { top: 84%; height: 22px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0 6px, transparent 6px 14px); }
-    .zap-overlay .num {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      animation: zap-num 420ms cubic-bezier(.2,.7,.3,1) forwards;
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 240px; line-height: 1;
-    }
-    .zap-overlay .num span { position: absolute; top: 0; left: 0; color: #fff; }
-    .zap-overlay .num .r { color: #ff003c; transform: translateX(4px); mix-blend-mode: screen; }
-    .zap-overlay .num .c { color: var(--accent); transform: translateX(-4px); mix-blend-mode: screen; }
-    .zap-overlay .num .base { position: relative; color: #fff; }
-
-    @keyframes zap-fade  { 0% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
-    @keyframes zap-flash { 0% { opacity: 0; } 8% { opacity: 0.85; } 18% { opacity: 0.4; } 30% { opacity: 0.15; } 55% { opacity: 0; } 100% { opacity: 0; } }
-    @keyframes zap-band  { 0% { opacity: 0; transform: translateY(-40px); } 10% { opacity: 0.95; } 35% { opacity: 0.85; transform: translateY(0); } 55% { opacity: 0.4; transform: translateY(20px); } 100% { opacity: 0; transform: translateY(40px); } }
-    @keyframes zap-num   { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); filter: blur(8px); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); } 60% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); } }
-
-    /* ── Toast ──────────────────────────────────────────────── */
-    .toast {
-      position: fixed; bottom: 24px; left: 50%;
-      transform: translateX(-50%);
-      background: var(--fg); color: var(--bg);
-      padding: 10px 18px; z-index: 50;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      letter-spacing: 0.22em; text-transform: uppercase;
-      animation: toast 1.3s ease-out forwards;
-      pointer-events: none;
-    }
-    @keyframes toast {
-      0%   { opacity: 0; transform: translate(-50%, 8px); }
-      12%  { opacity: 1; transform: translate(-50%, 0); }
-      75%  { opacity: 1; transform: translate(-50%, 0); }
-      100% { opacity: 0; transform: translate(-50%, -8px); }
+    .zap-chip .dot {
+      width: 8px; height: 8px; background: #fff; border-radius: 50%;
     }
 
-    /* ── Help modal ─────────────────────────────────────────── */
+    /* ── Help modal ───────────────────────────────────────────── */
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
     .help-backdrop {
       position: fixed; inset: 0; z-index: 100;
-      background: rgba(14,14,16,0.75);
-      backdrop-filter: blur(2px);
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
       display: flex; align-items: center; justify-content: center;
       animation: fade-in 0.18s ease;
     }
-    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
     .help-card {
-      background: var(--bg); color: var(--fg);
-      padding: 40px 48px; width: 520px; max-width: 92vw;
-      border: 1.5px solid var(--rule);
-      position: relative;
-    }
-    .help-card .pretitle {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+      background: var(--surface); color: var(--fg);
+      border-radius: 12px; padding: 32px; width: 480px; max-width: 92vw;
+      box-shadow: 0 24px 56px rgba(0,0,0,0.4);
     }
     .help-card h2 {
-      font-family: 'Instrument Serif', serif; font-size: 48px; line-height: 1;
-      margin: 6px 0 24px; font-weight: 400;
+      font-size: 22px; font-weight: 800; margin: 4px 0 0;
+      color: var(--fg-bright); letter-spacing: -0.01em;
     }
-    .help-card h2 em { font-style: italic; color: var(--accent); }
+    .help-card .head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 18px;
+    }
+    .help-card .pretitle {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
     .help-card .row {
-      display: grid; grid-template-columns: 160px 1fr;
-      padding: 12px 0; border-top: 1px dotted var(--line);
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      display: grid; grid-template-columns: 140px 1fr;
+      padding: 10px 0; border-top: 1px solid var(--line);
+      font-size: 13px; align-items: center;
     }
-    .help-card .row .key { color: var(--accent); letter-spacing: 0.12em; }
-    .help-card .row .label {
-      font-family: 'Instrument Serif', serif; font-size: 18px;
-      font-style: italic; color: var(--fg);
+    .help-card .row .key {
+      font-family: monospace; font-size: 12px; font-weight: 600;
+      background: var(--bg); color: var(--fg-bright);
+      padding: 4px 8px; border-radius: 4px; justify-self: start;
+      border: 1px solid var(--line);
     }
-    .help-card .close { position: absolute; top: 16px; right: 16px; }
+    .help-card .row .label { color: var(--fg); font-weight: 500; }
+    .help-close {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 6px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+    }
+    .help-close:hover { background: var(--surface3); color: var(--fg-bright); }
 
-    /* ── Mobile / narrow ────────────────────────────────────── */
-    @media (max-width: 880px) {
-      .app { grid-template-rows: 44px 1fr; }
-      .masthead { padding: 0 14px; gap: 8px; }
-      .masthead .center { font-size: 9px; gap: 8px; }
-      .masthead .right { font-size: 9px; gap: 6px; }
-      .masthead .right .email { display: none; }
-      .body-grid { --sidebar: 60px; grid-template-columns: var(--sidebar) 1fr; }
-      .channel-card { grid-template-columns: 1fr; padding: 12px 0; justify-items: center; }
-      .channel-info { display: none; }
-      .sidebar-header .title { display: none; }
-      main.main { padding: 14px 14px; }
-      .caption { grid-template-columns: 80px 1fr; gap: 16px; }
-      .caption .num { font-size: 80px; }
-      .caption h1 { font-size: 28px; }
-      .caption p { font-size: 16px; }
+    /* ── Mobile ───────────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      .app { --sidebar: 60px; }
+      .channel-card { grid-template-columns: 1fr; padding: 8px 0; margin: 4px 8px; justify-items: center; }
+      .channel-card .info, .channel-card::after { display: none; }
+      .sidebar-header .header-info { display: none; }
+      .nav .user-chip .name { display: none; }
+      .stage { padding: 14px 14px; }
     }
   </style>
 </head>
 <body>
 
   <div class="app" id="app">
-    <!-- ── Masthead ────────────────────────────────────────────── -->
-    <header class="masthead">
-      <div class="wordmark">
-        <span class="long">Antena<span class="dot">.</span></span>
-        <span class="short">A.</span>
+
+    <!-- ── Top nav ──────────────────────────────────────────────── -->
+    <header class="nav">
+      <div class="brand">
+        <span class="glyph">▶</span> ANTENA
       </div>
-      <div class="center">
-        <span id="date"></span>
-        <span class="dot-sep">·</span>
-        <span class="live-strip">
-          <span class="dot"></span>
-          <span id="signal-count">0</span>&nbsp;SEÑALES EN VIVO
-        </span>
-      </div>
-      <div class="right">
-        <button class="mono-btn" id="helpBtn" title="Atajos de teclado (?)">? Ayuda</button>
-        <span class="email" id="userEmail"></span>
-        <button class="mono-btn" id="logoutBtn">
-          Salir
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h12"/>
-          </svg>
+      <div class="actions">
+        <button class="nav-btn" id="helpBtn" title="Ayuda (?)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8.01"/><path d="M11 12h1v5"/></svg>
+        </button>
+        <button class="nav-btn" id="themeBtn" title="Cambiar tema">
+          <svg class="icon-sun"  viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+        <span class="sep"></span>
+        <div class="user-chip">
+          <div class="avatar" id="avatar">A</div>
+          <span class="name" id="userName">usuario</span>
+        </div>
+        <button class="nav-btn" id="logoutBtn" title="Salir">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h12"/></svg>
         </button>
       </div>
     </header>
 
-    <!-- ── Body ───────────────────────────────────────────────── -->
-    <div class="body-grid">
+    <!-- ── Body ─────────────────────────────────────────────────── -->
+    <div class="body">
 
       <!-- Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <span class="title">§ Índice de Señales</span>
+          <div class="header-info">
+            <div class="label">Canales en vivo</div>
+            <div class="count">
+              <span class="dot-pulse"></span>
+              <span id="signalCount">0</span> señales
+            </div>
+          </div>
           <button class="toggle-btn" id="toggleBtn" title="Ocultar / Desplegar (C)">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M9 6l6 6-6 6"/>
-            </svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
           </button>
         </div>
+        <!-- Channel info card -->
+        <div class="info-card" id="infoCard">
+          <div class="meta">
+            <span class="live"><span class="dot"></span>Transmitiendo</span>
+            <span>·</span>
+            <span>Canal <span id="metaN">—</span></span>
+          </div>
+          <h2 id="infoTitle">Selecciona un canal</h2>
+          <p id="infoDesc">Usa las flechas o las teclas 1–8.</p>
+        </div>
+
         <div class="channel-list" id="channelList">
-          <div class="empty-list">Cargando señales…</div>
+          <div class="empty-state">Cargando…</div>
         </div>
       </aside>
 
-      <!-- Main -->
-      <main class="main">
-        <div class="section-line">
-          <div class="ch-label">En pantalla · Canal <span id="ch-n">–</span></div>
-        </div>
-
-        <!-- Video frame -->
+      <!-- Stage -->
+      <main class="stage">
         <div class="video-wrap" id="videoWrap">
           <video id="video" playsinline muted></video>
-          <div class="ch-badge"><span class="dot">●</span> <span>CH.<span id="badge-n">–</span></span></div>
-          <div class="frame-title" id="frame-title"></div>
-          <div class="loading-overlay" id="loadingOverlay">Sintonizando…</div>
+          <div class="badges">
+            <div class="badge-live"><span class="dot"></span>EN VIVO</div>
+            <div class="badge-channel" id="badgeChannel">CH.—</div>
+          </div>
+          <div class="loading-overlay" id="loading">Sintonizando…</div>
           <div class="pause-overlay hidden" id="pauseOverlay">
-            <div>
-              <div class="glyph">⏸</div>
-              <div class="label">En pausa</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Controls -->
-        <div class="controls">
-          <button class="ctrl primary" id="playPauseBtn" title="Pausar (espacio)">
-            <svg id="playPauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-          </button>
-
-          <div class="volume-group">
-            <button class="ctrl" id="muteBtn" title="Silenciar (M)">
-              <svg id="muteIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+            <button class="pause-btn" id="bigPlayBtn" title="Reanudar">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
             </button>
-            <div class="volume-slider-wrap">
-              <input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value="0"/>
-            </div>
           </div>
 
-          <div class="live-tag">
-            <span class="live" id="liveTag">
-              <span class="dot"></span>
-              <span id="liveLabel">En vivo</span>
-            </span>
+          <div class="controls">
+            <button class="ctrl" id="playPauseBtn" title="Pausar (espacio)">
+              <svg id="ppIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
+            <button class="ctrl" id="muteBtn" title="Silenciar (M)">
+              <svg id="muteIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+            </button>
+            <input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value="0" />
+            <div class="spacer"></div>
+            <div class="pill-hd">HD · HLS</div>
+            <button class="ctrl" id="fsBtn" title="Pantalla completa (F)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
           </div>
-          <button class="ctrl" id="fsBtn" title="Pantalla completa (F)">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
-          </button>
         </div>
 
-        <!-- Editorial caption -->
-        <div class="caption">
-          <div class="num" id="cap-num">–</div>
-          <div>
-            <h1 id="cap-title">Seleccione un canal<span class="dot">.</span></h1>
-            <p id="cap-desc">El índice está a la izquierda. Use ↑ ↓ o las teclas 1–8 para saltar entre señales.</p>
-          </div>
-        </div>
       </main>
     </div>
   </div>
@@ -544,71 +482,68 @@
   <!-- Help modal -->
   <div class="help-backdrop hidden" id="helpModal">
     <div class="help-card">
-      <div class="pretitle">§ Atajos de teclado</div>
-      <h2>Mira con <em>las manos</em>.</h2>
-      <div class="row"><span class="key">ESPACIO</span>   <span class="label">pausar / reanudar</span></div>
-      <div class="row"><span class="key">M</span>         <span class="label">silenciar audio</span></div>
-      <div class="row"><span class="key">F</span>         <span class="label">pantalla completa</span></div>
-      <div class="row"><span class="key">C</span>         <span class="label">ocultar / desplegar índice</span></div>
-      <div class="row"><span class="key">↑ ↓ ← →</span>   <span class="label">canal anterior / siguiente</span></div>
-      <div class="row"><span class="key">1 – 8</span>     <span class="label">sintonizar canal</span></div>
-      <div class="row"><span class="key">?</span>         <span class="label">mostrar esta ayuda</span></div>
-      <div class="row"><span class="key">ESC</span>       <span class="label">cerrar / salir pantalla completa</span></div>
-      <button class="mono-btn close" id="closeHelp">Cerrar · ESC</button>
+      <div class="head">
+        <div>
+          <div class="pretitle">Ayuda</div>
+          <h2>Atajos de teclado</h2>
+        </div>
+        <button class="help-close" id="closeHelp">ESC</button>
+      </div>
+      <div class="row"><span class="key">ESPACIO</span> <span class="label">pausar / reanudar</span></div>
+      <div class="row"><span class="key">M</span>       <span class="label">silenciar audio</span></div>
+      <div class="row"><span class="key">F</span>       <span class="label">pantalla completa</span></div>
+      <div class="row"><span class="key">C</span>       <span class="label">ocultar / desplegar canales</span></div>
+      <div class="row"><span class="key">↑ ↓ ← →</span> <span class="label">canal anterior / siguiente</span></div>
+      <div class="row"><span class="key">1 – 8</span>   <span class="label">sintonizar canal</span></div>
+      <div class="row"><span class="key">?</span>       <span class="label">mostrar esta ayuda</span></div>
+      <div class="row"><span class="key">ESC</span>     <span class="label">cerrar / salir pantalla completa</span></div>
     </div>
   </div>
 
   <script src="config.js"></script>
   <script>
-    // ── Setup ──────────────────────────────────────────────
-    const $ = (id) => document.getElementById(id);
-
+    // ── Auth gate ──────────────────────────────────────────────
     const token = localStorage.getItem('token');
     if (!token) window.location.href = 'login.html';
-    $('userEmail').textContent = (localStorage.getItem('email') || '').toUpperCase();
-    $('date').textContent =
-      new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
 
-    const ICON_PAUSE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-    const ICON_PLAY  = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
-    const ICON_VOL   = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>';
-    const ICON_MUTED = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>';
+    const email = localStorage.getItem('email') || '';
+    $('userName').textContent = email.split('@')[0] || 'usuario';
+    $('avatar').textContent   = (email || 'U').slice(0, 1).toUpperCase();
 
-    const app          = $('app');
-    const video        = $('video');
-    const videoWrap    = $('videoWrap');
-    const playPauseBtn = $('playPauseBtn');
-    const muteBtn      = $('muteBtn');
-    const fsBtn        = $('fsBtn');
-    const volume       = $('volume');
-    const pauseOv      = $('pauseOverlay');
-    const loadingOv    = $('loadingOverlay');
-    const channelList  = $('channelList');
+    // ── DOM refs ───────────────────────────────────────────────
+    const ICON_PAUSE = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
+    const ICON_PLAY  = '<polygon points="6,4 20,12 6,20"/>';
+    const ICON_VOL   = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77S18.01 4.14 14 3.23z"/>';
+    const ICON_MUTED = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/>';
 
-    let hls        = null;
-    let streams    = [];
-    let currentIdx = -1;
-    let lastVolume = 0.7;
-    let stallTimer = null;
-    let collapsed  = false;
+    const app         = $('app');
+    const video       = $('video');
+    const videoWrap   = $('videoWrap');
+    const channelList = $('channelList');
+    const loadingEl   = $('loading');
+    const pauseOv     = $('pauseOverlay');
 
-    // ── Helpers ────────────────────────────────────────────
+    let hls            = null;
+    let streams        = [];
+    let currentIdx     = -1;
+    let lastVolume     = 0.7;
+    let stallTimer     = null;
+    let controlsTimer  = null;
+    let collapsed      = false;
+    let fullscreen     = false;
+
+    // ── Theme ──────────────────────────────────────────────────
+    $('themeBtn').addEventListener('click', () => AntenaTheme.toggle());
+
+    // ── Auth helpers ───────────────────────────────────────────
     function redirectLogin() {
       localStorage.removeItem('token');
       localStorage.removeItem('email');
       window.location.href = 'login.html';
     }
+    $('logoutBtn').addEventListener('click', redirectLogin);
 
-    function showToast(msg) {
-      document.querySelectorAll('.toast').forEach(t => t.remove());
-      const t = document.createElement('div');
-      t.className = 'toast';
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => t.remove(), 1300);
-    }
-
-    // ── Token refresh ──────────────────────────────────────
+    // Refresh JWT in the background.
     setInterval(async () => {
       try {
         const res = await fetch(`${window.API_BASE}/api/refresh`, {
@@ -623,9 +558,14 @@
       } catch (_) {}
     }, 50 * 60 * 1000);
 
-    $('logoutBtn').addEventListener('click', () => redirectLogin());
+    // ── Channel data + thumb gradient ─────────────────────────
+    function thumbGradient(id, n) {
+      const s = String(id) + '#' + n;
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+      return `linear-gradient(135deg, oklch(0.45 0.15 ${h}), oklch(0.20 0.08 ${h}))`;
+    }
 
-    // ── Streams ────────────────────────────────────────────
     async function loadStreams() {
       try {
         const res = await fetch(`${window.API_BASE}/api/streams`, {
@@ -633,104 +573,93 @@
         });
         if (res.status === 401) { redirectLogin(); return; }
         streams = await res.json();
-        $('signal-count').textContent = streams.length;
-        renderChannelList();
+        $('signalCount').textContent = streams.length;
+        renderList();
         if (streams.length > 0) playIndex(0);
         else {
-          channelList.innerHTML = '<div class="empty-list">No hay señales disponibles.</div>';
-          loadingOv.classList.add('hidden');
+          channelList.innerHTML = '<div class="empty-state">No hay señales disponibles.</div>';
+          loadingEl.classList.add('hidden');
         }
       } catch (e) {
-        console.error('Error loading streams', e);
-        channelList.innerHTML = '<div class="empty-list">Error de conexión.</div>';
+        console.error('Error cargando streams', e);
+        channelList.innerHTML = '<div class="empty-state">Error de conexión.</div>';
       }
     }
 
-    function renderChannelList() {
+    function renderList() {
       channelList.innerHTML = '';
       streams.forEach((s, i) => {
+        const n = String(i + 1).padStart(2, '0');
         const card = document.createElement('div');
         card.className = 'channel-card';
         card.dataset.idx = i;
-        const n = String(i + 1).padStart(2, '0');
+        card.title = s.title;
         card.innerHTML = `
-          <div class="channel-num">${n}</div>
-          <div class="channel-info">
-            <div class="channel-title">${escape(s.title)}</div>
-            <div class="channel-desc">${escape(s.description || '')}</div>
+          <div class="thumb" style="background:${thumbGradient(s.id, n)}">${n}</div>
+          <div class="info">
+            <div class="title">${escapeHtml(s.title)}</div>
+            <div class="desc">${escapeHtml(s.description || '')}</div>
           </div>
         `;
-        card.title = s.title;
         card.addEventListener('click', () => playIndex(i));
         channelList.appendChild(card);
       });
     }
 
-    function escape(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-    }
-
-    function updateActiveCard() {
+    function updateActive() {
       channelList.querySelectorAll('.channel-card').forEach((el, i) => {
         el.classList.toggle('active', i === currentIdx);
       });
     }
 
-    function updateCaption() {
+    function updateInfo() {
       const s = streams[currentIdx];
       if (!s) return;
       const n = String(currentIdx + 1).padStart(2, '0');
-      $('ch-n').textContent        = n;
-      $('badge-n').textContent     = n;
-      $('cap-num').textContent     = n;
-      $('frame-title').textContent = s.title;
-      const title = s.title.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
-      $('cap-title').innerHTML     = escape(title) + '<span class="dot">.</span>';
-      $('cap-desc').innerHTML      = '«' + escape(s.description || '') + '»';
-      document.title = `${title} · ANTENA`;
+      $('badgeChannel').textContent = `CH.${n} · ${s.title}`;
+      $('metaN').textContent = n;
+      $('infoTitle').textContent = s.title;
+      $('infoDesc').textContent = s.description || '';
+      document.title = `${s.title} · ANTENA`;
     }
 
-    // ── Zapping glitch ─────────────────────────────────────
+    // ── Zapping transition ─────────────────────────────────────
     function triggerZap(idx) {
-      const n = String(idx + 1).padStart(2, '0');
+      const s = streams[idx];
+      if (!s) return;
+      videoWrap.querySelectorAll('.zap-overlay').forEach((el) => el.remove());
       const ov = document.createElement('div');
       ov.className = 'zap-overlay';
       ov.innerHTML = `
-        <div class="flash"></div>
-        <div class="band b1"></div>
-        <div class="band b2"></div>
-        <div class="band b3"></div>
-        <div class="band b4"></div>
-        <div class="num">
-          <span class="r">${n}</span>
-          <span class="c">${n}</span>
-          <span class="base">${n}</span>
+        <div class="zap-chip">
+          <span class="dot"></span>
+          SINTONIZANDO · ${escapeHtml(s.title)}
         </div>`;
       videoWrap.appendChild(ov);
-      setTimeout(() => ov.remove(), 460);
+      setTimeout(() => ov.remove(), 380);
     }
 
-    // ── Playback ───────────────────────────────────────────
+    // ── Playback ───────────────────────────────────────────────
     function playIndex(idx) {
       if (idx === currentIdx || idx < 0 || idx >= streams.length) return;
       const isSwitch = currentIdx !== -1;
       if (isSwitch) triggerZap(idx);
       currentIdx = idx;
-      updateActiveCard();
-      updateCaption();
+      updateActive();
+      updateInfo();
       playCurrent();
     }
 
     function playCurrent() {
       clearStall();
-      loadingOv.classList.remove('hidden');
+      loadingEl.classList.remove('hidden');
       const s = streams[currentIdx];
       if (hls) { hls.destroy(); hls = null; }
       const playlistUrl = `${window.API_BASE}/stream/${s.id}/playlist.m3u8`;
       if (Hls.isSupported()) {
         let mediaRecovering = false;
         hls = new Hls({
-          xhrSetup: xhr => xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token')),
+          xhrSetup: (xhr) => xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token')),
           liveSyncDurationCount:       3,
           liveMaxLatencyDurationCount: 5,
           manifestLoadingMaxRetry:     6,
@@ -760,27 +689,26 @@
       }
     }
 
-    // ── Play / pause ───────────────────────────────────────
-    playPauseBtn.addEventListener('click', () => {
-      if (video.paused) {
-        if (currentIdx >= 0) playCurrent();
-      } else {
-        video.pause();
-      }
-    });
+    // ── Play / pause ───────────────────────────────────────────
+    function togglePlay() {
+      if (video.paused) { if (currentIdx >= 0) playCurrent(); }
+      else              { video.pause(); }
+    }
+    $('playPauseBtn').addEventListener('click', togglePlay);
+    $('bigPlayBtn').addEventListener('click', togglePlay);
+
     video.addEventListener('play', () => {
-      playPauseBtn.innerHTML = ICON_PAUSE;
-      playPauseBtn.title = 'Pausar (espacio)';
+      $('ppIcon').innerHTML = ICON_PAUSE;
+      $('playPauseBtn').title = 'Pausar (espacio)';
       pauseOv.classList.add('hidden');
-      $('liveTag').classList.remove('paused');
-      $('liveLabel').textContent = 'En vivo';
+      videoWrap.classList.remove('paused');
     });
     video.addEventListener('playing', () => {
-      loadingOv.classList.add('hidden');
-      clearStall(); // FIX: clear stall timer when buffering recovers
+      loadingEl.classList.add('hidden');
+      clearStall(); // clear stall timer when buffering recovers naturally
     });
     video.addEventListener('waiting', () => {
-      loadingOv.classList.remove('hidden');
+      loadingEl.classList.remove('hidden');
       if (stallTimer || video.paused) return;
       stallTimer = setTimeout(() => {
         stallTimer = null;
@@ -788,82 +716,98 @@
       }, 5000);
     });
     video.addEventListener('pause', () => {
-      playPauseBtn.innerHTML = ICON_PLAY;
-      playPauseBtn.title = 'Reanudar (espacio)';
+      $('ppIcon').innerHTML = ICON_PLAY;
+      $('playPauseBtn').title = 'Reanudar (espacio)';
       pauseOv.classList.remove('hidden');
-      $('liveTag').classList.add('paused');
-      $('liveLabel').textContent = 'En pausa';
+      videoWrap.classList.add('paused');
     });
     video.addEventListener('ended', () => { if (currentIdx >= 0) playCurrent(); });
-
     function clearStall() { clearTimeout(stallTimer); stallTimer = null; }
 
-    // ── Mute / volume ──────────────────────────────────────
+    // ── Mute / volume ──────────────────────────────────────────
     function syncMuteUI() {
       const muted = video.muted || video.volume === 0;
-      muteBtn.innerHTML = muted ? ICON_MUTED : ICON_VOL;
-      muteBtn.title = muted ? 'Activar audio (M)' : 'Silenciar (M)';
-      volume.value = muted ? 0 : video.volume;
+      $('muteIcon').innerHTML = muted ? ICON_MUTED : ICON_VOL;
+      $('muteBtn').title = muted ? 'Activar audio (M)' : 'Silenciar (M)';
+      $('volume').value = muted ? 0 : video.volume;
     }
-    muteBtn.addEventListener('click', () => {
+    $('muteBtn').addEventListener('click', () => {
       if (video.muted || video.volume === 0) {
-        video.muted = false; video.volume = lastVolume;
+        video.muted = false;
+        video.volume = lastVolume;
       } else {
-        lastVolume = video.volume; video.muted = true;
+        lastVolume = video.volume;
+        video.muted = true;
       }
       syncMuteUI();
     });
-    volume.addEventListener('input', () => {
-      const v = parseFloat(volume.value);
+    $('volume').addEventListener('input', () => {
+      const v = parseFloat($('volume').value);
       if (v > 0) lastVolume = v;
-      video.muted = v === 0; video.volume = v;
+      video.muted = v === 0;
+      video.volume = v;
       syncMuteUI();
     });
 
-    // ── Sidebar toggle ─────────────────────────────────────
+    // ── Sidebar toggle ─────────────────────────────────────────
     $('toggleBtn').addEventListener('click', () => {
       collapsed = !collapsed;
       app.classList.toggle('collapsed', collapsed);
     });
 
-    // ── Fullscreen ─────────────────────────────────────────
-    fsBtn.addEventListener('click', () => toggleFullscreen());
+    // ── Fullscreen ─────────────────────────────────────────────
+    $('fsBtn').addEventListener('click', toggleFullscreen);
     function toggleFullscreen() {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        // FIX: use #app so the .app.fullscreen CSS classes apply correctly
-        (app.requestFullscreen || app.webkitRequestFullscreen).call(app);
+        (videoWrap.requestFullscreen || videoWrap.webkitRequestFullscreen).call(videoWrap);
       } else {
         (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       }
     }
-    function onFsChange() {
-      const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      app.classList.toggle('fullscreen', inFs);
+    function onFs() {
+      fullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      app.classList.toggle('fullscreen', fullscreen);
+      if (!fullscreen) {
+        clearTimeout(controlsTimer);
+        videoWrap.classList.remove('show-controls');
+      }
     }
-    document.addEventListener('fullscreenchange', onFsChange);
-    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
 
-    // ── Help modal ─────────────────────────────────────────
+    // Auto-hide controls en fullscreen al dejar de mover el mouse
+    function showControlsTemporarily() {
+      if (!fullscreen) return;
+      videoWrap.classList.add('show-controls');
+      clearTimeout(controlsTimer);
+      controlsTimer = setTimeout(() => {
+        videoWrap.classList.remove('show-controls');
+      }, 3000);
+    }
+    videoWrap.addEventListener('mousemove', showControlsTemporarily);
+
+    // ── Help ───────────────────────────────────────────────────
     const helpModal = $('helpModal');
     $('helpBtn').addEventListener('click', () => helpModal.classList.toggle('hidden'));
     $('closeHelp').addEventListener('click', () => helpModal.classList.add('hidden'));
     helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.add('hidden'); });
 
-    // ── Keyboard shortcuts ─────────────────────────────────
+    // ── Keyboard ───────────────────────────────────────────────
     window.addEventListener('keydown', (e) => {
-      if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
       const k = e.key;
       if (k === ' ' || k === 'Spacebar') {
         e.preventDefault();
-        if (video.paused) { if (currentIdx >= 0) playCurrent(); showToast('▶ Reanudar'); }
-        else              { video.pause(); showToast('⏸ Pausar'); }
+        togglePlay();
+        showToast(video.paused ? 'Pausado' : 'Reanudado');
       } else if (k === 'm' || k === 'M') {
-        muteBtn.click(); showToast(video.muted ? '✕ Silenciado' : '♪ Audio activo');
+        $('muteBtn').click();
+        showToast(video.muted ? 'Silenciado' : 'Audio activo');
       } else if (k === 'f' || k === 'F') {
         toggleFullscreen();
       } else if (k === 'c' || k === 'C') {
         $('toggleBtn').click();
-        showToast(collapsed ? '« Índice oculto' : '» Índice desplegado');
+        showToast(collapsed ? 'Canales ocultos' : 'Canales visibles');
       } else if (k === '?' || (k === '/' && e.shiftKey)) {
         helpModal.classList.toggle('hidden');
       } else if (k === 'Escape') {
@@ -880,7 +824,7 @@
       }
     });
 
-    // ── Go ─────────────────────────────────────────────────
+    // ── Go ─────────────────────────────────────────────────────
     loadStreams();
   </script>
 </body>

@@ -6,265 +6,114 @@
   <title>Iniciar sesión — ANTENA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg:      #EFEAE0;
-      --surface: #FFFFFF;
-      --fg:      #0E0E10;
-      --muted:   #6B6258;
-      --line:    rgba(14,14,16,0.16);
-      --rule:    #0E0E10;
-      --accent:  #005F66;
-      --live:    #C8311F;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0; height: 100vh;
-      background: var(--bg); color: var(--fg);
-      font-family: 'Manrope', sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    body { display: flex; }
-
-    /* ── Left: nameplate column ──────────────────────────────── */
-    .nameplate {
-      flex: 1 1 0;
-      padding: 40px 48px;
-      display: flex; flex-direction: column; justify-content: space-between;
-      border-right: 1.5px solid var(--rule);
-      position: relative; overflow: hidden;
-    }
-    .masthead-strip {
-      display: flex; justify-content: space-between;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    }
-    .pre-title {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 12px;
-    }
-    .wordmark {
-      font-family: 'Instrument Serif', serif;
-      font-size: clamp(96px, 14vw, 180px);
-      line-height: 0.85; margin: 0;
-      font-weight: 400; letter-spacing: -0.04em;
-    }
-    .wordmark .dot { color: var(--accent); }
-    .tagline {
-      margin-top: 28px; max-width: 420px;
-      font-family: 'Instrument Serif', serif; font-style: italic;
-      font-size: 26px; line-height: 1.2;
-    }
-    .rule { border-top: 1.5px solid var(--rule); height: 1px; }
-
-    /* ── Right: form column ──────────────────────────────────── */
-    .panel {
-      flex: 0 0 480px;
-      padding: 40px 48px;
-      background: var(--surface);
-      display: flex; flex-direction: column; justify-content: space-between;
-    }
-    .panel-top { padding-top: 56px; }
-    h2.title {
-      font-family: 'Instrument Serif', serif;
-      font-size: 56px; line-height: 0.95;
-      margin: 0 0 8px; font-weight: 400;
-    }
-    h2.title em { color: var(--accent); font-style: italic; }
-    .subtitle {
-      font-family: 'Manrope', sans-serif; font-size: 14px;
-      color: var(--muted); margin-bottom: 48px; line-height: 1.5;
-    }
-
-    .field { margin-bottom: 28px; }
-    .field-label {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--muted); margin-bottom: 8px;
-    }
-    .field-input-wrap {
-      display: flex; align-items: center; gap: 8px;
-      border-bottom: 1.5px solid var(--rule);
-      padding-bottom: 10px;
-      transition: border-color 0.2s;
-    }
-    .field-input-wrap.error { border-color: var(--live); }
-    .field input {
-      flex: 1; min-width: 0;
-      background: transparent; border: none; outline: none;
-      color: var(--fg);
-      font-family: 'Instrument Serif', serif; font-size: 28px;
-      padding: 0;
-    }
-    .field input[type="email"] { font-style: italic; }
-    .field .eye {
-      background: transparent; border: none; cursor: pointer;
-      color: var(--fg); padding: 4px; display: flex;
-    }
-    .field-hint {
-      margin-top: 8px;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      color: var(--muted);
-    }
-    .field-hint.error { color: var(--live); }
-
-    .btn-primary {
-      display: flex; align-items: center; justify-content: space-between;
-      width: 100%; padding: 20px 24px;
-      background: var(--fg); color: var(--bg);
-      border: none; cursor: pointer;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      letter-spacing: 0.22em; text-transform: uppercase;
-      transition: background 0.2s;
-    }
-    .btn-primary:hover { background: #2a2a30; }
-    .btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
-
-    .panel-foot {
-      margin-top: 32px; padding-top: 24px;
-      border-top: 1px solid var(--line);
-      display: flex; justify-content: space-between; align-items: center;
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
-      letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
-    }
-    .panel-foot a {
-      color: var(--accent); text-decoration: none; cursor: pointer;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .panel-foot a:hover { text-decoration: underline; }
-
-    .alert {
-      margin-bottom: 24px; padding: 12px 16px;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      letter-spacing: 0.14em; text-transform: uppercase;
-    }
-    .alert.error   { background: var(--live); color: #fff; }
-    .alert.success { background: var(--accent); color: #fff; }
-    .alert.hidden  { display: none; }
-
-    @media (max-width: 880px) {
-      body { flex-direction: column; }
-      .nameplate { border-right: none; border-bottom: 1.5px solid var(--rule); padding: 24px 28px; }
-      .wordmark { font-size: 84px; }
-      .tagline { font-size: 18px; margin-top: 14px; }
-      .panel { flex: 1 1 auto; padding: 24px 28px; }
-      h2.title { font-size: 36px; }
-      .panel-top { padding-top: 16px; }
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="antena.js"></script>
+  <link rel="stylesheet" href="antena.css" />
 </head>
 <body>
 
-  <aside class="nameplate">
-    <div class="masthead-strip">
-      <span>ANTENA · TELEVISIÓN CONTINUA</span>
-      <span id="date"></span>
-    </div>
-    <div>
-      <div class="pre-title">›› Pantalla de Ingreso ‹‹</div>
-      <h1 class="wordmark">Antena<span class="dot">.</span></h1>
-      <p class="tagline">Vuelva a sintonizar. La señal lleva esperándole desde el último apagado.</p>
-    </div>
-    <div class="rule"></div>
-  </aside>
+  <button class="theme-chip" id="themeChip" title="Cambiar tema">
+    <svg class="icon-sun"  viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <span class="label-claro">Claro</span>
+    <span class="label-oscuro">Oscuro</span>
+  </button>
 
-  <main class="panel">
-    <div class="panel-top">
-      <h2 class="title">Bienvenido<br/>de <em>vuelta</em>.</h2>
-      <p class="subtitle">Ingrese sus credenciales para sintonizar.</p>
+  <main class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-row">
+          <span class="glyph">▶</span> ANTENA
+        </div>
+        <h1>¡Hola de nuevo!</h1>
+        <p>¡Qué bueno verte por aquí otra vez!</p>
+      </div>
 
       <div id="alert" class="alert hidden"></div>
 
       <form id="loginForm" novalidate>
-        <div class="field">
-          <div class="field-label">Correo</div>
-          <div class="field-input-wrap" id="email-wrap">
+        <div class="field" id="email-field">
+          <div class="field-label">
+            Correo electrónico <span class="req">*</span>
+            <span class="err hidden" id="email-err"></span>
+          </div>
+          <div class="field-input">
             <input id="email" type="email" autocomplete="email" required />
           </div>
-          <div class="field-hint hidden" id="email-hint"></div>
         </div>
 
-        <div class="field">
-          <div class="field-label">Contraseña</div>
-          <div class="field-input-wrap" id="password-wrap">
+        <div class="field" id="password-field">
+          <div class="field-label">
+            Contraseña <span class="req">*</span>
+            <span class="err hidden" id="password-err"></span>
+          </div>
+          <div class="field-input">
             <input id="password" type="password" autocomplete="current-password" required />
             <button type="button" class="eye" id="reveal" title="Mostrar / ocultar">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
-          <div class="field-hint hidden" id="password-hint"></div>
         </div>
 
-        <button type="submit" class="btn-primary" id="submit">
-          <span>Sintonizar</span>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M5 12h14M13 5l7 7-7 7"/>
-          </svg>
-        </button>
+        <button type="submit" class="btn-primary" id="submit">Sintonizar</button>
       </form>
-    </div>
 
-    <div class="panel-foot">
-      <span>¿SIN CUENTA?</span>
-      <a href="register.html">
-        Crear una
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 12h14M13 5l7 7-7 7"/>
-        </svg>
-      </a>
+      <div class="auth-foot">
+        ¿Necesitas una cuenta? <a id="goRegister" href="register.html">Regístrate</a>
+      </div>
     </div>
   </main>
 
   <script src="config.js"></script>
   <script>
-    document.getElementById('date').textContent =
-      new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
-
+    // Skip if already logged in.
     if (localStorage.getItem('token')) {
       window.location.href = 'player.html';
     }
 
-    const passInput = document.getElementById('password');
-    document.getElementById('reveal').addEventListener('click', () => {
-      passInput.type = passInput.type === 'password' ? 'text' : 'password';
+    document.getElementById('themeChip').addEventListener('click', () => {
+      AntenaTheme.toggle();
     });
 
-    const $ = (id) => document.getElementById(id);
-    const setError = (field, msg) => {
-      $(field + '-wrap').classList.toggle('error', !!msg);
-      const hint = $(field + '-hint');
-      hint.textContent = msg || '';
-      hint.classList.toggle('hidden', !msg);
-      hint.classList.add('error');
-    };
-    const showAlert = (msg, kind = 'error') => {
+    document.getElementById('reveal').addEventListener('click', () => {
+      const i = $('password');
+      i.type = i.type === 'password' ? 'text' : 'password';
+    });
+
+    function fieldError(field, msg) {
+      const fEl = $(field + '-field');
+      const eEl = $(field + '-err');
+      if (msg) {
+        fEl.classList.add('error');
+        eEl.textContent = '→ ' + msg;
+        eEl.classList.remove('hidden');
+      } else {
+        fEl.classList.remove('error');
+        eEl.classList.add('hidden');
+      }
+    }
+    function showAlert(msg, kind = 'error') {
       const el = $('alert');
       el.textContent = msg;
       el.className = 'alert ' + kind;
-    };
+    }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       $('alert').className = 'alert hidden';
-      setError('email', ''); setError('password', '');
+      fieldError('email', ''); fieldError('password', '');
 
       const email    = $('email').value.trim();
       const password = $('password').value;
 
       let valid = true;
-      if (!email.includes('@')) { setError('email', 'Correo no válido'); valid = false; }
-      if (password.length < 6)  { setError('password', 'Mínimo 6 caracteres'); valid = false; }
+      if (!email.includes('@')) { fieldError('email', 'correo no válido'); valid = false; }
+      if (password.length < 6)  { fieldError('password', 'mínimo 6'); valid = false; }
       if (!valid) return;
 
       const submit = $('submit');
       submit.disabled = true;
-      submit.querySelector('span').textContent = 'Sintonizando…';
+      submit.textContent = 'Sintonizando…';
 
       try {
         const res = await fetch(`${window.API_BASE}/api/login`, {
@@ -280,12 +129,12 @@
         } else {
           showAlert(data.error || 'Credenciales incorrectas');
           submit.disabled = false;
-          submit.querySelector('span').textContent = 'Sintonizar';
+          submit.textContent = 'Sintonizar';
         }
       } catch (_) {
         showAlert('Error de conexión');
         submit.disabled = false;
-        submit.querySelector('span').textContent = 'Sintonizar';
+        submit.textContent = 'Sintonizar';
       }
     });
   </script>

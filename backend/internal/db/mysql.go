@@ -11,7 +11,7 @@ var DB *sql.DB
 
 func InitDB() error {
     // DSN: usuario:password@tcp(host:puerto)/nombre_bd
-    dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+    dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&collation=utf8mb4_unicode_ci&parseTime=true",
         os.Getenv("MYSQL_USER"),
         os.Getenv("MYSQL_PASSWORD"),
         os.Getenv("DB_HOST"),
