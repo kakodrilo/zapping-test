@@ -312,13 +312,33 @@ Con `MaxOpenConns(10)`, el peor caso es 10 conexiones × ~400 KB de buffers por 
 
 ### Paso 1 — Certificados TLS
 
+Requiere `openssl`. Ejecutar desde la **raíz del proyecto** según el sistema operativo:
+
+**Linux / macOS:**
 ```bash
-cd certs
-bash generate.sh
-cd ..
+sh certs/generate.sh
 ```
 
-Genera `cert.pem` y `key.pem` autofirmados. El navegador mostrará advertencia de seguridad la primera vez — aceptar y continuar.
+**Windows — Git Bash** (viene con [Git for Windows](https://git-scm.com/download/win)):
+```bash
+MSYS_NO_PATHCONV=1 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/key.pem \
+  -out    certs/cert.pem \
+  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+```
+
+**Windows — WSL:**
+```bash
+sh certs/generate.sh
+```
+
+**Windows — sin Git Bash ni WSL** (usando Docker directamente):
+```powershell
+docker run --rm -v "${PWD}/certs:/certs" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/key.pem -out /certs/cert.pem -subj "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+```
+
+Genera `certs/cert.pem` y `certs/key.pem`. El navegador mostrará advertencia de seguridad la primera vez — aceptar y continuar.
 
 ### Paso 2 — Variables de entorno
 
@@ -387,7 +407,7 @@ Los scripts SQL en `database/init_db/` son ejecutados automáticamente por MySQL
 ### Paso 5 — Levantar
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 El orden de arranque es:
@@ -419,16 +439,21 @@ El sistema necesita tres cosas para un nuevo stream:
 
 #### 1. Agregar los segmentos
 
+Se puede usar el siguiente contenido de prueba para agregar un segundo canal:
+[Descargar segmentos de prueba](https://drive.google.com/file/d/18Lso52cKZybn9FTa9nHamErDKPddCoji/view?usp=sharing)
+
 Crear una carpeta dentro de `segments/` con los archivos del nuevo stream:
 
 ```
 segments/
 └── mi_nuevo_canal/
-    ├── output.m3u8
-    ├── output0.ts
-    ├── output1.ts
+    ├── segment.m3u8      ← nombre obligatorio, el servicio Go lo busca exactamente así
+    ├── segment0.ts
+    ├── segment1.ts
     └── ...
 ```
+
+> **Importante:** el archivo de playlist **debe llamarse `segment.m3u8`** sin excepción. El servicio Go construye la URL `http://nginx/segments/<segment_path>/segment.m3u8` al arrancar. Si el archivo tiene otro nombre (ej. `output.m3u8`, `index.m3u8`), el stream será ignorado con un error 404 y `stream_segments` quedará vacío para ese canal.
 
 El nombre de la carpeta (`mi_nuevo_canal`) será el `segment_path` en la base de datos.
 
