@@ -3,73 +3,298 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Crear cuenta - Zapping</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Crear cuenta — ANTENA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { background: #0d1117; color: #e6edf3; }
-    .card { background: #161b22; border: 1px solid #30363d; }
-    .form-control { background: #0d1117; color: #e6edf3; border-color: #30363d; }
-    .form-control:focus { background: #0d1117; color: #e6edf3; border-color: #58a6ff; box-shadow: none; }
-    .btn-primary { background: #238636; border-color: #238636; }
-    .btn-primary:hover { background: #2ea043; border-color: #2ea043; }
+    :root {
+      --bg:      #EFEAE0;
+      --surface: #FFFFFF;
+      --fg:      #0E0E10;
+      --muted:   #6B6258;
+      --line:    rgba(14,14,16,0.16);
+      --rule:    #0E0E10;
+      --accent:  #005F66;
+      --live:    #C8311F;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100vh;
+      background: var(--bg); color: var(--fg);
+      font-family: 'Manrope', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body { display: flex; }
+
+    /* Register mirrors login: form on the left, nameplate on the right. */
+    .panel {
+      flex: 0 0 480px;
+      padding: 40px 48px;
+      background: var(--surface);
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .panel-top { padding-top: 56px; }
+    h2.title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 56px; line-height: 0.95;
+      margin: 0 0 48px; font-weight: 400;
+    }
+    h2.title em { color: var(--accent); font-style: italic; }
+
+    .field { margin-bottom: 28px; }
+    .field-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .field-input-wrap {
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1.5px solid var(--rule);
+      padding-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .field-input-wrap.error { border-color: var(--live); }
+    .field input {
+      flex: 1; min-width: 0;
+      background: transparent; border: none; outline: none;
+      color: var(--fg);
+      font-family: 'Instrument Serif', serif; font-size: 28px;
+      padding: 0;
+    }
+    .field input[type="email"] { font-style: italic; }
+    .field .eye {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--fg); padding: 4px; display: flex;
+    }
+    .field-hint {
+      margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field-hint.error { color: var(--live); }
+    .hidden { display: none; }
+
+    .btn-primary {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; padding: 20px 24px;
+      background: var(--fg); color: var(--bg);
+      border: none; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #2a2a30; }
+    .btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+
+    .panel-foot {
+      margin-top: 32px; padding-top: 24px;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    }
+    .panel-foot a {
+      color: var(--accent); text-decoration: none; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-foot a:hover { text-decoration: underline; }
+
+    .alert {
+      margin-bottom: 24px; padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .alert.error   { background: var(--live); color: #fff; }
+    .alert.success { background: var(--accent); color: #fff; }
+    .alert.hidden  { display: none; }
+
+    .nameplate {
+      flex: 1 1 0;
+      padding: 40px 48px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      border-left: 1.5px solid var(--rule);
+      position: relative; overflow: hidden;
+    }
+    .masthead-strip {
+      display: flex; justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .pre-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 12px;
+    }
+    .wordmark {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(96px, 14vw, 180px);
+      line-height: 0.85; margin: 0;
+      font-weight: 400; letter-spacing: -0.04em;
+    }
+    .wordmark .dot { color: var(--accent); }
+    .tagline {
+      margin-top: 28px; max-width: 420px;
+      font-family: 'Instrument Serif', serif; font-style: italic;
+      font-size: 26px; line-height: 1.2;
+    }
+    .rule { border-top: 1.5px solid var(--rule); height: 1px; }
+
+    @media (max-width: 880px) {
+      body { flex-direction: column-reverse; }
+      .nameplate { border-left: none; border-bottom: 1.5px solid var(--rule); padding: 24px 28px; }
+      .wordmark { font-size: 84px; }
+      .tagline { font-size: 18px; margin-top: 14px; }
+      .panel { flex: 1 1 auto; padding: 24px 28px; }
+      h2.title { font-size: 36px; margin-bottom: 28px; }
+      .panel-top { padding-top: 16px; }
+    }
   </style>
 </head>
-<body class="d-flex align-items-center justify-content-center min-vh-100">
-  <div class="card p-4 shadow" style="width: 100%; max-width: 400px;">
-    <h4 class="mb-4 text-center">Crear cuenta</h4>
-    <div id="alert" class="alert d-none"></div>
-    <form id="registerForm">
-      <div class="mb-3">
-        <label class="form-label">Nombre</label>
-        <input type="text" id="name" class="form-control" placeholder="Tu nombre" required />
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input type="email" id="email" class="form-control" placeholder="tu@email.com" required />
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Contraseña</label>
-        <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres" required />
-      </div>
-      <button type="submit" class="btn btn-primary w-100">Registrarse</button>
-    </form>
-    <hr class="border-secondary" />
-    <p class="text-center mb-0 small">
-      ¿Ya tenés cuenta? <a href="/login.html" class="text-info">Iniciar sesión</a>
-    </p>
-  </div>
+<body>
 
-  <script src="/config.js"></script>
+  <main class="panel">
+    <div class="panel-top">
+      <h2 class="title">Crear<br/>una <em>cuenta</em>.</h2>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <form id="registerForm" novalidate>
+        <div class="field">
+          <div class="field-label">Nombre</div>
+          <div class="field-input-wrap" id="name-wrap">
+            <input id="name" type="text" autocomplete="name" required />
+          </div>
+          <div class="field-hint hidden" id="name-hint"></div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Correo</div>
+          <div class="field-input-wrap" id="email-wrap">
+            <input id="email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field-hint hidden" id="email-hint"></div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Contraseña</div>
+          <div class="field-input-wrap" id="password-wrap">
+            <input id="password" type="password" autocomplete="new-password" required />
+            <button type="button" class="eye" id="reveal" title="Mostrar / ocultar">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="field-hint" id="password-hint">MÍNIMO 6 CARACTERES</div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="submit">
+          <span>Darse de alta</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+
+    <div class="panel-foot">
+      <span>¿YA REGISTRADO?</span>
+      <a href="login.html">
+        Iniciar sesión
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M5 12h14M13 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </main>
+
+  <aside class="nameplate">
+    <div class="masthead-strip">
+      <span>ANTENA · TELEVISIÓN CONTINUA</span>
+      <span id="date"></span>
+    </div>
+    <div>
+      <div class="pre-title">›› Pantalla de Alta ‹‹</div>
+      <h1 class="wordmark">Antena<span class="dot">.</span></h1>
+      <p class="tagline">Una vez emitido el primer fotograma, ya nada se borra del archivo.</p>
+    </div>
+    <div class="rule"></div>
+  </aside>
+
+  <script src="config.js"></script>
   <script>
-    document.getElementById('registerForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const alertEl = document.getElementById('alert');
-      alertEl.className = 'alert d-none';
+    document.getElementById('date').textContent =
+      new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
 
-      const body = {
-        name: document.getElementById('name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value,
-      };
+    const passInput = document.getElementById('password');
+    document.getElementById('reveal').addEventListener('click', () => {
+      passInput.type = passInput.type === 'password' ? 'text' : 'password';
+    });
+
+    const $ = (id) => document.getElementById(id);
+    const setError = (field, msg) => {
+      $(field + '-wrap').classList.toggle('error', !!msg);
+      const hint = $(field + '-hint');
+      if (msg) {
+        hint.textContent = msg;
+        hint.classList.remove('hidden');
+        hint.classList.add('error');
+      } else if (field === 'password') {
+        hint.textContent = 'MÍNIMO 6 CARACTERES';
+        hint.classList.remove('error', 'hidden');
+      } else {
+        hint.classList.add('hidden');
+        hint.classList.remove('error');
+      }
+    };
+
+    const showAlert = (msg, kind = 'error') => {
+      const el = $('alert');
+      el.textContent = msg;
+      el.className = 'alert ' + kind;
+    };
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('alert').className = 'alert hidden';
+      setError('name', ''); setError('email', ''); setError('password', '');
+
+      const name     = $('name').value.trim();
+      const email    = $('email').value.trim();
+      const password = $('password').value;
+
+      let valid = true;
+      if (name.length < 2)     { setError('name', 'Nombre demasiado corto'); valid = false; }
+      if (!email.includes('@')) { setError('email', 'Correo no válido'); valid = false; }
+      if (password.length < 6) { setError('password', 'Mínimo 6 caracteres'); valid = false; }
+      if (!valid) return;
+
+      const submit = $('submit');
+      submit.disabled = true;
+      submit.querySelector('span').textContent = 'Creando…';
 
       try {
         const res = await fetch(`${window.API_BASE}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ name, email, password }),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
-          alertEl.className = 'alert alert-success';
-          alertEl.textContent = 'Cuenta creada. Redirigiendo...';
-          setTimeout(() => window.location.href = '/login.html', 1500);
+          showAlert('Cuenta creada. Redirigiendo…', 'success');
+          setTimeout(() => window.location.href = 'login.html', 1200);
         } else {
-          alertEl.className = 'alert alert-danger';
-          alertEl.textContent = data.error || 'Error al registrar';
+          showAlert(data.error || 'Error al registrar');
+          submit.disabled = false;
+          submit.querySelector('span').textContent = 'Darse de alta';
         }
       } catch (_) {
-        alertEl.className = 'alert alert-danger';
-        alertEl.textContent = 'Error de conexión';
+        showAlert('Error de conexión');
+        submit.disabled = false;
+        submit.querySelector('span').textContent = 'Darse de alta';
       }
     });
   </script>
