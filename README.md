@@ -316,11 +316,7 @@ Requiere `openssl`. Ejecutar desde la **raíz del proyecto** según el sistema o
 
 **Linux / macOS:**
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout certs/key.pem \
-  -out    certs/cert.pem \
-  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
-  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+sh certs/generate.sh
 ```
 
 **Windows — Git Bash** (viene con [Git for Windows](https://git-scm.com/download/win)):
@@ -334,11 +330,7 @@ MSYS_NO_PATHCONV=1 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 
 **Windows — WSL:**
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout certs/key.pem \
-  -out    certs/cert.pem \
-  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
-  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
+sh certs/generate.sh
 ```
 
 **Windows — sin Git Bash ni WSL** (usando Docker directamente):
@@ -447,16 +439,21 @@ El sistema necesita tres cosas para un nuevo stream:
 
 #### 1. Agregar los segmentos
 
+Se puede usar el siguiente contenido de prueba para agregar un segundo canal:
+[Descargar segmentos de prueba](https://drive.google.com/file/d/18Lso52cKZybn9FTa9nHamErDKPddCoji/view?usp=sharing)
+
 Crear una carpeta dentro de `segments/` con los archivos del nuevo stream:
 
 ```
 segments/
 └── mi_nuevo_canal/
-    ├── output.m3u8
-    ├── output0.ts
-    ├── output1.ts
+    ├── segment.m3u8      ← nombre obligatorio, el servicio Go lo busca exactamente así
+    ├── segment0.ts
+    ├── segment1.ts
     └── ...
 ```
+
+> **Importante:** el archivo de playlist **debe llamarse `segment.m3u8`** sin excepción. El servicio Go construye la URL `http://nginx/segments/<segment_path>/segment.m3u8` al arrancar. Si el archivo tiene otro nombre (ej. `output.m3u8`, `index.m3u8`), el stream será ignorado con un error 404 y `stream_segments` quedará vacío para ese canal.
 
 El nombre de la carpeta (`mi_nuevo_canal`) será el `segment_path` en la base de datos.
 
