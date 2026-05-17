@@ -3,7 +3,6 @@ package jwtadapter
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -14,8 +13,8 @@ type jwtService struct {
 	secret []byte
 }
 
-func NewService() port.TokenService {
-	return &jwtService{secret: []byte(os.Getenv("JWT_SECRET"))}
+func NewService(secret string) port.TokenService {
+	return &jwtService{secret: []byte(secret)}
 }
 
 type claims struct {

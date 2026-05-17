@@ -1,2 +1,2 @@
-// API REST is a separate service — match APP_PORT in .env
-window.API_BASE = 'https://localhost:8080';
+// Injected at container startup by entrypoint.sh from the API_BASE env var.
+window.API_BASE = '__API_BASE__';

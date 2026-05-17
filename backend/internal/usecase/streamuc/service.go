@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	windowSize       = 3
+	windowSize = 3
+
+	// rotationInterval matches the segment duration specified in the technical requirements.
+	// Each .ts segment is exactly 10 seconds; one segment is dropped and one is added every interval.
 	rotationInterval = 10 * time.Second
 )
 
@@ -21,8 +24,8 @@ type StreamService struct {
 	streamRepo  port.StreamRepository
 	segmentRepo port.SegmentRepository
 	mediaClient port.MediaClient
-	state       *StateRegistry
-	paths       sync.Map // map[int]string: streamID → segment_path (read-only after startup)
+	meta        sync.Map // map[int]streamMeta — read-only after startup
+	paths       sync.Map // map[int]string   — read-only after startup
 }
 
 func NewService(sr port.StreamRepository, sgr port.SegmentRepository, mc port.MediaClient) *StreamService {
@@ -30,28 +33,30 @@ func NewService(sr port.StreamRepository, sgr port.SegmentRepository, mc port.Me
 		streamRepo:  sr,
 		segmentRepo: sgr,
 		mediaClient: mc,
-		state:       newStateRegistry(),
 	}
 }
 
-// LoadAll seeds segments from NGINX (if not already in DB) and starts rotation goroutines.
-func (svc *StreamService) LoadAll(ctx context.Context) (int, error) {
+// LoadAll seeds segments from NGINX (if not already in DB) and registers stream metadata.
+// Returns the number of successfully loaded streams, non-fatal per-stream warnings, and a
+// fatal error if the stream list itself could not be retrieved.
+func (svc *StreamService) LoadAll(ctx context.Context) (int, []error, error) {
 	streams, err := svc.streamRepo.ListActive(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
+	var warnings []error
 	count := 0
 	for _, s := range streams {
-		if err := svc.seedAndStart(ctx, s); err != nil {
-			fmt.Printf("warning: skipping stream %d (%s): %v\n", s.ID, s.Title, err)
+		if err := svc.seedAndRegister(ctx, s); err != nil {
+			warnings = append(warnings, fmt.Errorf("stream %d (%s): %w", s.ID, s.Title, err))
 			continue
 		}
 		count++
 	}
-	return count, nil
+	return count, warnings, nil
 }
 
-func (svc *StreamService) seedAndStart(ctx context.Context, s domain.Stream) error {
+func (svc *StreamService) seedAndRegister(ctx context.Context, s domain.Stream) error {
 	exists, err := svc.segmentRepo.Exists(ctx, s.ID)
 	if err != nil {
 		return err
@@ -67,12 +72,12 @@ func (svc *StreamService) seedAndStart(ctx context.Context, s domain.Stream) err
 		}
 	}
 
-	count, err := svc.segmentRepo.Count(ctx, s.ID)
+	segCount, err := svc.segmentRepo.Count(ctx, s.ID)
 	if err != nil {
 		return err
 	}
-	if count == 0 {
-		return fmt.Errorf("no segments found")
+	if segCount == 0 {
+		return fmt.Errorf("no segments found for stream %d", s.ID)
 	}
 
 	maxDur, err := svc.segmentRepo.MaxDuration(ctx, s.ID)
@@ -80,16 +85,12 @@ func (svc *StreamService) seedAndStart(ctx context.Context, s domain.Stream) err
 		return err
 	}
 
-	svc.state.init(s.ID, count, int(math.Ceil(maxDur)), s.InitialOffset)
+	svc.meta.Store(s.ID, streamMeta{
+		segCount:       segCount,
+		targetDuration: int(math.Ceil(maxDur)),
+		startedAt:      s.StartedAt,
+	})
 	svc.paths.Store(s.ID, s.Path)
-
-	go func() {
-		ticker := time.NewTicker(rotationInterval)
-		defer ticker.Stop()
-		for range ticker.C {
-			svc.state.advance(s.ID)
-		}
-	}()
 
 	return nil
 }
@@ -98,17 +99,22 @@ func (svc *StreamService) ListAll(ctx context.Context) ([]domain.Stream, error) 
 	return svc.streamRepo.ListActive(ctx)
 }
 
-// GetPlaylist builds the current 3-segment HLS window by querying the DB for exactly
-// those positions. Memory usage is O(windowSize), not O(total segments).
+// GetPlaylist builds the current 3-segment HLS window from a deterministic clock-based
+// position derived from started_at. No shared mutable state — safe across restarts and
+// multiple replicas: any instance computes the same window for the same stream at the same instant.
 func (svc *StreamService) GetPlaylist(ctx context.Context, streamID int) (domain.PlaylistSnapshot, error) {
-	start, seq, count, targetDur, ok := svc.state.snapshot(streamID)
+	val, ok := svc.meta.Load(streamID)
 	if !ok {
 		return domain.PlaylistSnapshot{}, domain.ErrNotFound
 	}
+	m := val.(streamMeta)
+
+	rotations := int(time.Since(m.startedAt) / rotationInterval)
+	windowStart := rotations % m.segCount
 
 	positions := make([]int, windowSize)
 	for i := range positions {
-		positions[i] = (start + i) % count
+		positions[i] = (windowStart + i) % m.segCount
 	}
 
 	segs, err := svc.segmentRepo.GetByPositions(ctx, streamID, positions)
@@ -116,7 +122,6 @@ func (svc *StreamService) GetPlaylist(ctx context.Context, streamID int) (domain
 		return domain.PlaylistSnapshot{}, err
 	}
 
-	// Re-order to match the window order (DB may not preserve it).
 	byPos := make(map[int]domain.Segment, len(segs))
 	for _, sg := range segs {
 		byPos[sg.Position] = sg
@@ -128,8 +133,8 @@ func (svc *StreamService) GetPlaylist(ctx context.Context, streamID int) (domain
 
 	return domain.PlaylistSnapshot{
 		Segments:       ordered,
-		MediaSequence:  seq,
-		TargetDuration: targetDur,
+		MediaSequence:  rotations,
+		TargetDuration: m.targetDuration,
 	}, nil
 }
 

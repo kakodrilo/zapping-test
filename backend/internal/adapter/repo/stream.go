@@ -18,7 +18,7 @@ func NewStreamRepository(db *sql.DB) port.StreamRepository {
 
 func (r *mysqlStreamRepo) ListActive(ctx context.Context) ([]domain.Stream, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, title, COALESCE(description,''), segment_path, COALESCE(initial_offset,0)
+		SELECT id, title, COALESCE(description,''), segment_path, started_at
 		FROM streams_metadata
 		WHERE is_active = TRUE
 	`)
@@ -30,7 +30,7 @@ func (r *mysqlStreamRepo) ListActive(ctx context.Context) ([]domain.Stream, erro
 	var streams []domain.Stream
 	for rows.Next() {
 		var s domain.Stream
-		if err := rows.Scan(&s.ID, &s.Title, &s.Description, &s.Path, &s.InitialOffset); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.Description, &s.Path, &s.StartedAt); err != nil {
 			return nil, err
 		}
 		streams = append(streams, s)

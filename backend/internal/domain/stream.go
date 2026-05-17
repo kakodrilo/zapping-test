@@ -1,11 +1,13 @@
 package domain
 
+import "time"
+
 type Stream struct {
-	ID            int
-	Title         string
-	Description   string
-	Path          string
-	InitialOffset int
+	ID          int
+	Title       string
+	Description string
+	Path        string
+	StartedAt   time.Time
 }
 
 type Segment struct {

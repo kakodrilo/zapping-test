@@ -44,6 +44,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: livestream_frontend
+    environment:
+      - API_BASE=${API_BASE:-https://localhost:8080}
     networks:
       - livestream_network
     restart: always

@@ -21,29 +21,33 @@ func main() {
 		log.Println("no .env file found, using system environment")
 	}
 
-	if err := db.InitDB(); err != nil {
+	database, err := db.InitDB()
+	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
 	}
-	defer db.DB.Close()
+	defer database.Close()
 	log.Println("database connected")
 
 	// Infrastructure
-	tokenSvc := jwtadapter.NewService()
+	tokenSvc := jwtadapter.NewService(os.Getenv("JWT_SECRET"))
 	mediaClient := media.NewNginxClient(os.Getenv("MEDIA_SERVER_URL"))
-	streamRepo := repo.NewStreamRepository(db.DB)
-	segmentRepo := repo.NewSegmentRepository(db.DB)
-	userRepo := repo.NewUserRepository(db.DB)
+	streamRepo := repo.NewStreamRepository(database)
+	segmentRepo := repo.NewSegmentRepository(database)
+	userRepo := repo.NewUserRepository(database)
 
 	// Use cases
 	streamSvc := streamuc.NewService(streamRepo, segmentRepo, mediaClient)
 	authSvc := authuc.NewService(userRepo, tokenSvc)
 
-	// Seed segment metadata to DB (once) and start rotation goroutines
-	count, err := streamSvc.LoadAll(context.Background())
+	// Seed segment metadata to DB (once) if not present
+	count, warnings, err := streamSvc.LoadAll(context.Background())
 	if err != nil {
 		log.Fatalf("failed to load streams: %v", err)
 	}
-	log.Printf("%d stream(s) loaded and started", count)
+	for _, w := range warnings {
+		log.Printf("warning: %v", w)
+	}
+	log.Printf("%d stream(s) loaded", count)
 
 	// HTTP controllers
 	streamH := handler.NewStreamHandler(streamSvc)

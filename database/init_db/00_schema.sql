@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS streams_metadata (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(255),
     segment_path VARCHAR(255) NOT NULL,
-    initial_offset INT DEFAULT 0,
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE
 ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

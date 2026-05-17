@@ -21,10 +21,14 @@ const (
 
 type NginxClient struct {
 	baseURL string
+	client  *http.Client
 }
 
 func NewNginxClient(baseURL string) port.MediaClient {
-	return &NginxClient{baseURL: baseURL}
+	return &NginxClient{
+		baseURL: baseURL,
+		client:  &http.Client{Timeout: 30 * time.Second},
+	}
 }
 
 // FetchM3U8 retrieves and parses segment.m3u8 from NGINX, retrying on failure.
@@ -36,7 +40,7 @@ func (c *NginxClient) FetchM3U8(ctx context.Context, path string) ([]domain.Segm
 		if i > 0 {
 			time.Sleep(fetchDelay)
 		}
-		segs, err := parseM3U8(ctx, url)
+		segs, err := parseM3U8(ctx, url, c.client)
 		if err == nil && len(segs) > 0 {
 			return segs, nil
 		}
@@ -53,7 +57,7 @@ func (c *NginxClient) StreamSegment(ctx context.Context, path, name string, dst 
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -66,12 +70,12 @@ func (c *NginxClient) StreamSegment(ctx context.Context, path, name string, dst 
 	return err
 }
 
-func parseM3U8(ctx context.Context, url string) ([]domain.Segment, error) {
+func parseM3U8(ctx context.Context, url string, client *http.Client) ([]domain.Segment, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
