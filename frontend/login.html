@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Iniciar sesión — ANTENA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="antena.js"></script>
+  <link rel="stylesheet" href="antena.css" />
+</head>
+<body>
+
+  <button class="theme-chip" id="themeChip" title="Cambiar tema">
+    <svg class="icon-sun"  viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <span class="label-claro">Claro</span>
+    <span class="label-oscuro">Oscuro</span>
+  </button>
+
+  <main class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-row">
+          <span class="glyph">▶</span> ANTENA
+        </div>
+        <h1>¡Hola de nuevo!</h1>
+        <p>¡Qué bueno verte por aquí otra vez!</p>
+      </div>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <form id="loginForm" novalidate>
+        <div class="field" id="email-field">
+          <div class="field-label">
+            Correo electrónico <span class="req">*</span>
+            <span class="err hidden" id="email-err"></span>
+          </div>
+          <div class="field-input">
+            <input id="email" type="email" autocomplete="email" required />
+          </div>
+        </div>
+
+        <div class="field" id="password-field">
+          <div class="field-label">
+            Contraseña <span class="req">*</span>
+            <span class="err hidden" id="password-err"></span>
+          </div>
+          <div class="field-input">
+            <input id="password" type="password" autocomplete="current-password" required />
+            <button type="button" class="eye" id="reveal" title="Mostrar / ocultar">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="submit">Sintonizar</button>
+      </form>
+
+      <div class="auth-foot">
+        ¿Necesitas una cuenta? <a id="goRegister" href="register.html">Regístrate</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    // Skip if already logged in.
+    if (localStorage.getItem('token')) {
+      window.location.href = 'player.html';
+    }
+
+    document.getElementById('themeChip').addEventListener('click', () => {
+      AntenaTheme.toggle();
+    });
+
+    document.getElementById('reveal').addEventListener('click', () => {
+      const i = $('password');
+      i.type = i.type === 'password' ? 'text' : 'password';
+    });
+
+    function fieldError(field, msg) {
+      const fEl = $(field + '-field');
+      const eEl = $(field + '-err');
+      if (msg) {
+        fEl.classList.add('error');
+        eEl.textContent = '→ ' + msg;
+        eEl.classList.remove('hidden');
+      } else {
+        fEl.classList.remove('error');
+        eEl.classList.add('hidden');
+      }
+    }
+    function showAlert(msg, kind = 'error') {
+      const el = $('alert');
+      el.textContent = msg;
+      el.className = 'alert ' + kind;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('alert').className = 'alert hidden';
+      fieldError('email', ''); fieldError('password', '');
+
+      const email    = $('email').value.trim();
+      const password = $('password').value;
+
+      let valid = true;
+      if (!email.includes('@')) { fieldError('email', 'correo no válido'); valid = false; }
+      if (password.length < 6)  { fieldError('password', 'mínimo 6'); valid = false; }
+      if (!valid) return;
+
+      const submit = $('submit');
+      submit.disabled = true;
+      submit.textContent = 'Sintonizando…';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('email', email);
+          window.location.href = 'player.html';
+        } else {
+          showAlert(data.error || 'Credenciales incorrectas');
+          submit.disabled = false;
+          submit.textContent = 'Sintonizar';
+        }
+      } catch (_) {
+        showAlert('Error de conexión');
+        submit.disabled = false;
+        submit.textContent = 'Sintonizar';
+      }
+    });
+  </script>
+</body>
+</html>

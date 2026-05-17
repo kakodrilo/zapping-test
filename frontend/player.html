@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player — ANTENA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+  <script src="antena.js"></script>
+  <link rel="stylesheet" href="antena.css" />
+  <style>
+    body { overflow: auto; }
+
+    .app {
+      --sidebar: 280px;
+      --nav-h:   48px;
+      display: grid; grid-template-rows: var(--nav-h) 1fr;
+      width: 100vw;
+      transition: grid-template-rows 0.28s ease;
+    }
+    .app.collapsed  { --sidebar: 60px; }
+    .app.fullscreen { --nav-h: 0px; --sidebar: 0px; }
+
+    /* ── Top nav ──────────────────────────────────────────────── */
+    .nav {
+      background: var(--surface); border-bottom: 1px solid var(--line);
+      padding: 0 16px;
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .app.fullscreen .nav { display: none; }
+    .nav .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 17px; font-weight: 800; letter-spacing: -0.01em;
+      color: var(--fg-bright);
+    }
+    .nav .brand .glyph { color: var(--accent); font-size: 18px; }
+    .nav .actions { display: flex; align-items: center; gap: 6px; }
+    .nav .sep { width: 1px; height: 24px; background: var(--line); margin: 0 6px; }
+    .nav-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 8px; border-radius: 4px;
+      display: flex; transition: background 0.12s, color 0.12s;
+    }
+    .nav-btn:hover { background: var(--surface3); color: var(--fg-bright); }
+    .nav-btn .icon-sun  { display: inline; }
+    .nav-btn .icon-moon { display: none; }
+    html[data-theme="claro"] .nav-btn .icon-sun  { display: none; }
+    html[data-theme="claro"] .nav-btn .icon-moon { display: inline; }
+    .user-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 10px 4px 4px; border-radius: 999px;
+      background: var(--surface2);
+    }
+    .user-chip .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+    .user-chip .name { font-size: 13px; font-weight: 500; color: var(--fg); }
+
+    /* ── Body grid ────────────────────────────────────────────── */
+    .body {
+      display: grid;
+      grid-template-columns: var(--sidebar) 1fr;
+      height: 100%;
+      transition: grid-template-columns 0.28s cubic-bezier(.4,.0,.2,1);
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface); border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .app.fullscreen .sidebar { display: none; }
+    .sidebar-header {
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .app.collapsed .sidebar-header { padding: 12px 0; justify-content: center; }
+    .app.collapsed .sidebar-header .header-info { display: none; }
+    .sidebar-header .label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .sidebar-header .count {
+      display: flex; align-items: center; gap: 6px; margin-top: 4px;
+      font-size: 13px; font-weight: 600; color: var(--fg-bright);
+    }
+    .toggle-btn {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 6px; border-radius: 4px; display: flex;
+      transition: background 0.12s, color 0.12s;
+    }
+    .toggle-btn:hover { background: var(--surface3); color: var(--fg-bright); }
+    .toggle-btn svg {
+      transform: rotate(180deg);
+      transition: transform 0.25s ease;
+    }
+    .app.collapsed .toggle-btn svg { transform: rotate(0deg); }
+
+    .channel-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .app.collapsed .channel-list { padding: 8px 0; }
+
+    .channel-card {
+      position: relative;
+      padding: 10px 12px; margin-bottom: 2px;
+      display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+      align-items: center;
+      border-radius: 6px; cursor: pointer;
+      transition: background 0.12s;
+    }
+    .channel-card:hover { background: var(--surface3); }
+    .channel-card.active { background: var(--accent-soft); }
+    .channel-card .thumb {
+      width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+      position: relative; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 11px; font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .channel-card .info { min-width: 0; }
+    .channel-card .title {
+      font-size: 14px; font-weight: 600; color: var(--fg);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .channel-card.active .title { color: var(--fg-bright); }
+    .channel-card .desc {
+      font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .channel-card.active::after {
+      content: ''; width: 8px; height: 8px; background: var(--live);
+      border-radius: 50%; animation: pulse 2s ease-in-out infinite;
+    }
+    .app.collapsed .channel-card {
+      grid-template-columns: 1fr;
+      padding: 8px 0; margin: 4px 8px;
+      justify-items: center;
+    }
+    .app.collapsed .channel-card .info,
+    .app.collapsed .channel-card::after { display: none; }
+    .app.collapsed .channel-card.active::before {
+      content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+      width: 4px; height: 24px; background: var(--accent); border-radius: 0 2px 2px 0;
+    }
+
+    .empty-state {
+      padding: 24px 16px; color: var(--muted); font-size: 13px;
+    }
+
+    /* ── Stage ────────────────────────────────────────────────── */
+    .stage {
+      background: var(--bg); overflow: auto;
+      padding: 24px 32px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .app.fullscreen .stage { padding: 0; gap: 0; overflow: hidden; }
+
+    /* Video wrap — 16:9 strict + fits within viewport */
+    .video-wrap {
+      position: relative; width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: calc(100vh - var(--nav-h) - 48px);
+      max-width: calc((100vh - var(--nav-h) - 48px) * 16 / 9);
+      margin: 0 auto;
+      border-radius: 12px; overflow: hidden;
+      background: #000; flex-shrink: 0;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.32), 0 4px 12px rgba(0,0,0,0.16);
+    }
+    .app.fullscreen .video-wrap {
+      max-height: none; max-width: none; aspect-ratio: auto;
+      width: 100vw; height: 100vh; border-radius: 0; box-shadow: none; margin: 0;
+    }
+    .video-wrap video {
+      width: 100%; height: 100%;
+      display: block; background: #000; object-fit: contain;
+    }
+
+    /* Top-left overlay badges */
+    .badges {
+      position: absolute; top: 16px; left: 16px;
+      display: flex; align-items: center; gap: 8px;
+      pointer-events: none;
+    }
+    .badge-live {
+      background: var(--live); color: #fff;
+      padding: 4px 10px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .badge-live .dot {
+      width: 7px; height: 7px; background: #fff; border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .badge-channel {
+      background: rgba(0,0,0,0.55); color: #fff;
+      padding: 4px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+      pointer-events: none;
+    }
+    .loading-overlay::before {
+      content: ''; width: 10px; height: 10px; background: #fff;
+      border-radius: 50%; margin-right: 12px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    /* Pause overlay */
+    .pause-overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+    .pause-btn {
+      width: 88px; height: 88px; border-radius: 50%;
+      background: var(--accent); color: #fff; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: transform 0.15s;
+    }
+    .pause-btn:hover { transform: scale(1.06); }
+
+    /* Floating controls */
+    .controls {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 20px 16px 16px;
+      background: linear-gradient(180deg, transparent, rgba(0,0,0,0.75));
+      display: flex; align-items: center; gap: 10px;
+      opacity: 0; transition: opacity 0.18s; pointer-events: none;
+    }
+    .video-wrap:hover .controls,
+    .video-wrap.paused .controls { opacity: 1; pointer-events: auto; }
+
+    /* Fullscreen: cursor y controles ocultos hasta que el mouse se mueva */
+    .app.fullscreen .video-wrap { cursor: none; }
+    .app.fullscreen .video-wrap.show-controls,
+    .app.fullscreen .video-wrap.paused { cursor: default; }
+    .app.fullscreen .video-wrap:hover .controls { opacity: 0; pointer-events: none; }
+    .app.fullscreen .video-wrap.show-controls .controls,
+    .app.fullscreen .video-wrap.paused .controls { opacity: 0.8; pointer-events: auto; }
+    .ctrl {
+      background: rgba(255,255,255,0.12); color: #fff;
+      border: none; border-radius: 4px; padding: 8px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+      transition: background 0.12s, transform 0.1s;
+    }
+    .ctrl:hover  { background: rgba(255,255,255,0.22); }
+    .ctrl:active { transform: scale(0.94); }
+    .volume {
+      width: 100px; accent-color: #fff; cursor: pointer;
+    }
+    .pill-hd {
+      color: #fff; font-size: 12px; font-weight: 600; opacity: 0.85;
+      background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 4px;
+    }
+    .spacer { flex: 1; }
+
+    /* ── Channel info card ────────────────────────────────────── */
+    .info-card {
+      background: var(--surface2); border-bottom: 1px solid var(--line);
+      padding: 14px 16px; flex-shrink: 0;
+      height: 100px; overflow: hidden;
+    }
+    .app.collapsed .info-card { display: none; }
+    .info-card .meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    .info-card .meta .live {
+      color: var(--live); display: flex; align-items: center; gap: 5px;
+    }
+    .info-card .meta .live .dot {
+      width: 6px; height: 6px; background: var(--live); border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .info-card h2 {
+      font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
+      color: var(--fg-bright); margin: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .info-card p {
+      margin: 4px 0 0; font-size: 12px; color: var(--muted);
+      line-height: 1.45;
+    }
+
+    /* ── Zapping (smooth accent chip) ────────────────────────── */
+    @keyframes zap-overlay {
+      0%   { opacity: 0; backdrop-filter: blur(0); }
+      18%  { opacity: 1; backdrop-filter: blur(12px); }
+      75%  { opacity: 1; backdrop-filter: blur(12px); }
+      100% { opacity: 0; backdrop-filter: blur(0); }
+    }
+    @keyframes zap-chip {
+      0%   { transform: scale(0.86); opacity: 0; }
+      15%  { transform: scale(1.04); opacity: 1; }
+      30%  { transform: scale(1); }
+      80%  { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.96); opacity: 0; }
+    }
+    .zap-overlay {
+      position: absolute; inset: 0; pointer-events: none;
+      background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      animation: zap-overlay 350ms cubic-bezier(.2,.7,.3,1) forwards;
+      z-index: 10;
+    }
+    .zap-chip {
+      background: var(--accent); color: #fff;
+      border-radius: 999px; padding: 12px 22px;
+      font-size: 16px; font-weight: 700;
+      box-shadow: 0 8px 32px rgba(88,101,242,0.4);
+      animation: zap-chip 350ms cubic-bezier(.2,.7,.3,1) forwards;
+      display: inline-flex; align-items: center; gap: 10px;
+    }
+    .zap-chip .dot {
+      width: 8px; height: 8px; background: #fff; border-radius: 50%;
+    }
+
+    /* ── Help modal ───────────────────────────────────────────── */
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .help-backdrop {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(2px);
+      display: flex; align-items: center; justify-content: center;
+      animation: fade-in 0.18s ease;
+    }
+    .help-card {
+      background: var(--surface); color: var(--fg);
+      border-radius: 12px; padding: 32px; width: 480px; max-width: 92vw;
+      box-shadow: 0 24px 56px rgba(0,0,0,0.4);
+    }
+    .help-card h2 {
+      font-size: 22px; font-weight: 800; margin: 4px 0 0;
+      color: var(--fg-bright); letter-spacing: -0.01em;
+    }
+    .help-card .head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 18px;
+    }
+    .help-card .pretitle {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .help-card .row {
+      display: grid; grid-template-columns: 140px 1fr;
+      padding: 10px 0; border-top: 1px solid var(--line);
+      font-size: 13px; align-items: center;
+    }
+    .help-card .row .key {
+      font-family: monospace; font-size: 12px; font-weight: 600;
+      background: var(--bg); color: var(--fg-bright);
+      padding: 4px 8px; border-radius: 4px; justify-self: start;
+      border: 1px solid var(--line);
+    }
+    .help-card .row .label { color: var(--fg); font-weight: 500; }
+    .help-close {
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); padding: 6px 10px; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+    }
+    .help-close:hover { background: var(--surface3); color: var(--fg-bright); }
+
+    /* ── Mobile ───────────────────────────────────────────────── */
+    @media (max-width: 720px) {
+      .app { --sidebar: 60px; }
+      .channel-card { grid-template-columns: 1fr; padding: 8px 0; margin: 4px 8px; justify-items: center; }
+      .channel-card .info, .channel-card::after { display: none; }
+      .sidebar-header .header-info { display: none; }
+      .nav .user-chip .name { display: none; }
+      .stage { padding: 14px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app" id="app">
+
+    <!-- ── Top nav ──────────────────────────────────────────────── -->
+    <header class="nav">
+      <div class="brand">
+        <span class="glyph">▶</span> ANTENA
+      </div>
+      <div class="actions">
+        <button class="nav-btn" id="helpBtn" title="Ayuda (?)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8.01"/><path d="M11 12h1v5"/></svg>
+        </button>
+        <button class="nav-btn" id="themeBtn" title="Cambiar tema">
+          <svg class="icon-sun"  viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+        <span class="sep"></span>
+        <div class="user-chip">
+          <div class="avatar" id="avatar">A</div>
+          <span class="name" id="userName">usuario</span>
+        </div>
+        <button class="nav-btn" id="logoutBtn" title="Salir">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Body ─────────────────────────────────────────────────── -->
+    <div class="body">
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="header-info">
+            <div class="label">Canales en vivo</div>
+            <div class="count">
+              <span class="dot-pulse"></span>
+              <span id="signalCount">0</span> señales
+            </div>
+          </div>
+          <button class="toggle-btn" id="toggleBtn" title="Ocultar / Desplegar (C)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <!-- Channel info card -->
+        <div class="info-card" id="infoCard">
+          <div class="meta">
+            <span class="live"><span class="dot"></span>Transmitiendo</span>
+            <span>·</span>
+            <span>Canal <span id="metaN">—</span></span>
+          </div>
+          <h2 id="infoTitle">Selecciona un canal</h2>
+          <p id="infoDesc">Usa las flechas o las teclas 1–8.</p>
+        </div>
+
+        <div class="channel-list" id="channelList">
+          <div class="empty-state">Cargando…</div>
+        </div>
+      </aside>
+
+      <!-- Stage -->
+      <main class="stage">
+        <div class="video-wrap" id="videoWrap">
+          <video id="video" playsinline muted></video>
+          <div class="badges">
+            <div class="badge-live"><span class="dot"></span>EN VIVO</div>
+            <div class="badge-channel" id="badgeChannel">CH.—</div>
+          </div>
+          <div class="loading-overlay" id="loading">Sintonizando…</div>
+          <div class="pause-overlay hidden" id="pauseOverlay">
+            <button class="pause-btn" id="bigPlayBtn" title="Reanudar">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            </button>
+          </div>
+
+          <div class="controls">
+            <button class="ctrl" id="playPauseBtn" title="Pausar (espacio)">
+              <svg id="ppIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            </button>
+            <button class="ctrl" id="muteBtn" title="Silenciar (M)">
+              <svg id="muteIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>
+            </button>
+            <input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value="0" />
+            <div class="spacer"></div>
+            <div class="pill-hd">HD · HLS</div>
+            <button class="ctrl" id="fsBtn" title="Pantalla completa (F)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Help modal -->
+  <div class="help-backdrop hidden" id="helpModal">
+    <div class="help-card">
+      <div class="head">
+        <div>
+          <div class="pretitle">Ayuda</div>
+          <h2>Atajos de teclado</h2>
+        </div>
+        <button class="help-close" id="closeHelp">ESC</button>
+      </div>
+      <div class="row"><span class="key">ESPACIO</span> <span class="label">pausar / reanudar</span></div>
+      <div class="row"><span class="key">M</span>       <span class="label">silenciar audio</span></div>
+      <div class="row"><span class="key">F</span>       <span class="label">pantalla completa</span></div>
+      <div class="row"><span class="key">C</span>       <span class="label">ocultar / desplegar canales</span></div>
+      <div class="row"><span class="key">↑ ↓ ← →</span> <span class="label">canal anterior / siguiente</span></div>
+      <div class="row"><span class="key">1 – 8</span>   <span class="label">sintonizar canal</span></div>
+      <div class="row"><span class="key">?</span>       <span class="label">mostrar esta ayuda</span></div>
+      <div class="row"><span class="key">ESC</span>     <span class="label">cerrar / salir pantalla completa</span></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // ── Auth gate ──────────────────────────────────────────────
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'login.html';
+
+    const email = localStorage.getItem('email') || '';
+    $('userName').textContent = email.split('@')[0] || 'usuario';
+    $('avatar').textContent   = (email || 'U').slice(0, 1).toUpperCase();
+
+    // ── DOM refs ───────────────────────────────────────────────
+    const ICON_PAUSE = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
+    const ICON_PLAY  = '<polygon points="6,4 20,12 6,20"/>';
+    const ICON_VOL   = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77S18.01 4.14 14 3.23z"/>';
+    const ICON_MUTED = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/>';
+
+    const app         = $('app');
+    const video       = $('video');
+    const videoWrap   = $('videoWrap');
+    const channelList = $('channelList');
+    const loadingEl   = $('loading');
+    const pauseOv     = $('pauseOverlay');
+
+    let hls            = null;
+    let streams        = [];
+    let currentIdx     = -1;
+    let lastVolume     = 0.7;
+    let stallTimer     = null;
+    let controlsTimer  = null;
+    let collapsed      = false;
+    let fullscreen     = false;
+
+    // ── Theme ──────────────────────────────────────────────────
+    $('themeBtn').addEventListener('click', () => AntenaTheme.toggle());
+
+    // ── Auth helpers ───────────────────────────────────────────
+    function redirectLogin() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('email');
+      window.location.href = 'login.html';
+    }
+    $('logoutBtn').addEventListener('click', redirectLogin);
+
+    // Refresh JWT in the background.
+    setInterval(async () => {
+      try {
+        const res = await fetch(`${window.API_BASE}/api/refresh`, {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('token', data.token);
+        } else {
+          redirectLogin();
+        }
+      } catch (_) {}
+    }, 50 * 60 * 1000);
+
+    // ── Channel data + thumb gradient ─────────────────────────
+    function thumbGradient(id, n) {
+      const s = String(id) + '#' + n;
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+      return `linear-gradient(135deg, oklch(0.45 0.15 ${h}), oklch(0.20 0.08 ${h}))`;
+    }
+
+    async function loadStreams() {
+      try {
+        const res = await fetch(`${window.API_BASE}/api/streams`, {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (res.status === 401) { redirectLogin(); return; }
+        streams = await res.json();
+        $('signalCount').textContent = streams.length;
+        renderList();
+        if (streams.length > 0) playIndex(0);
+        else {
+          channelList.innerHTML = '<div class="empty-state">No hay señales disponibles.</div>';
+          loadingEl.classList.add('hidden');
+        }
+      } catch (e) {
+        console.error('Error cargando streams', e);
+        channelList.innerHTML = '<div class="empty-state">Error de conexión.</div>';
+      }
+    }
+
+    function renderList() {
+      channelList.innerHTML = '';
+      streams.forEach((s, i) => {
+        const n = String(i + 1).padStart(2, '0');
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+        card.dataset.idx = i;
+        card.title = s.title;
+        card.innerHTML = `
+          <div class="thumb" style="background:${thumbGradient(s.id, n)}">${n}</div>
+          <div class="info">
+            <div class="title">${escapeHtml(s.title)}</div>
+            <div class="desc">${escapeHtml(s.description || '')}</div>
+          </div>
+        `;
+        card.addEventListener('click', () => playIndex(i));
+        channelList.appendChild(card);
+      });
+    }
+
+    function updateActive() {
+      channelList.querySelectorAll('.channel-card').forEach((el, i) => {
+        el.classList.toggle('active', i === currentIdx);
+      });
+    }
+
+    function updateInfo() {
+      const s = streams[currentIdx];
+      if (!s) return;
+      const n = String(currentIdx + 1).padStart(2, '0');
+      $('badgeChannel').textContent = `CH.${n} · ${s.title}`;
+      $('metaN').textContent = n;
+      $('infoTitle').textContent = s.title;
+      $('infoDesc').textContent = s.description || '';
+      document.title = `${s.title} · ANTENA`;
+    }
+
+    // ── Zapping transition ─────────────────────────────────────
+    function triggerZap(idx) {
+      const s = streams[idx];
+      if (!s) return;
+      videoWrap.querySelectorAll('.zap-overlay').forEach((el) => el.remove());
+      const ov = document.createElement('div');
+      ov.className = 'zap-overlay';
+      ov.innerHTML = `
+        <div class="zap-chip">
+          <span class="dot"></span>
+          SINTONIZANDO · ${escapeHtml(s.title)}
+        </div>`;
+      videoWrap.appendChild(ov);
+      setTimeout(() => ov.remove(), 380);
+    }
+
+    // ── Playback ───────────────────────────────────────────────
+    function playIndex(idx) {
+      if (idx === currentIdx || idx < 0 || idx >= streams.length) return;
+      const isSwitch = currentIdx !== -1;
+      if (isSwitch) triggerZap(idx);
+      currentIdx = idx;
+      updateActive();
+      updateInfo();
+      playCurrent();
+    }
+
+    function playCurrent() {
+      clearStall();
+      loadingEl.classList.remove('hidden');
+      const s = streams[currentIdx];
+      if (hls) { hls.destroy(); hls = null; }
+      const playlistUrl = `${window.API_BASE}/stream/${s.id}/playlist.m3u8`;
+      if (Hls.isSupported()) {
+        let mediaRecovering = false;
+        hls = new Hls({
+          xhrSetup: (xhr) => xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token')),
+          liveSyncDurationCount:       3,
+          liveMaxLatencyDurationCount: 5,
+          manifestLoadingMaxRetry:     6,
+          levelLoadingMaxRetry:        6,
+          fragLoadingMaxRetry:         6,
+        });
+        hls.loadSource(playlistUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          syncMuteUI();
+          video.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.response && data.response.code === 401) { redirectLogin(); return; }
+          if (!data.fatal) return;
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !mediaRecovering) {
+            mediaRecovering = true;
+            hls.recoverMediaError();
+          } else {
+            setTimeout(() => { if (currentIdx >= 0) playCurrent(); }, 2000);
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playlistUrl;
+        syncMuteUI();
+        video.play().catch(() => {});
+      }
+    }
+
+    // ── Play / pause ───────────────────────────────────────────
+    function togglePlay() {
+      if (video.paused) { if (currentIdx >= 0) playCurrent(); }
+      else              { video.pause(); }
+    }
+    $('playPauseBtn').addEventListener('click', togglePlay);
+    $('bigPlayBtn').addEventListener('click', togglePlay);
+
+    video.addEventListener('play', () => {
+      $('ppIcon').innerHTML = ICON_PAUSE;
+      $('playPauseBtn').title = 'Pausar (espacio)';
+      pauseOv.classList.add('hidden');
+      videoWrap.classList.remove('paused');
+    });
+    video.addEventListener('playing', () => {
+      loadingEl.classList.add('hidden');
+      clearStall(); // clear stall timer when buffering recovers naturally
+    });
+    video.addEventListener('waiting', () => {
+      loadingEl.classList.remove('hidden');
+      if (stallTimer || video.paused) return;
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        if (!video.paused && currentIdx >= 0) playCurrent();
+      }, 5000);
+    });
+    video.addEventListener('pause', () => {
+      $('ppIcon').innerHTML = ICON_PLAY;
+      $('playPauseBtn').title = 'Reanudar (espacio)';
+      pauseOv.classList.remove('hidden');
+      videoWrap.classList.add('paused');
+    });
+    video.addEventListener('ended', () => { if (currentIdx >= 0) playCurrent(); });
+    function clearStall() { clearTimeout(stallTimer); stallTimer = null; }
+
+    // ── Mute / volume ──────────────────────────────────────────
+    function syncMuteUI() {
+      const muted = video.muted || video.volume === 0;
+      $('muteIcon').innerHTML = muted ? ICON_MUTED : ICON_VOL;
+      $('muteBtn').title = muted ? 'Activar audio (M)' : 'Silenciar (M)';
+      $('volume').value = muted ? 0 : video.volume;
+    }
+    $('muteBtn').addEventListener('click', () => {
+      if (video.muted || video.volume === 0) {
+        video.muted = false;
+        video.volume = lastVolume;
+      } else {
+        lastVolume = video.volume;
+        video.muted = true;
+      }
+      syncMuteUI();
+    });
+    $('volume').addEventListener('input', () => {
+      const v = parseFloat($('volume').value);
+      if (v > 0) lastVolume = v;
+      video.muted = v === 0;
+      video.volume = v;
+      syncMuteUI();
+    });
+
+    // ── Sidebar toggle ─────────────────────────────────────────
+    $('toggleBtn').addEventListener('click', () => {
+      collapsed = !collapsed;
+      app.classList.toggle('collapsed', collapsed);
+    });
+
+    // ── Fullscreen ─────────────────────────────────────────────
+    $('fsBtn').addEventListener('click', toggleFullscreen);
+    function toggleFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        (videoWrap.requestFullscreen || videoWrap.webkitRequestFullscreen).call(videoWrap);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      }
+    }
+    function onFs() {
+      fullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      app.classList.toggle('fullscreen', fullscreen);
+      if (!fullscreen) {
+        clearTimeout(controlsTimer);
+        videoWrap.classList.remove('show-controls');
+      }
+    }
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+
+    // Auto-hide controls en fullscreen al dejar de mover el mouse
+    function showControlsTemporarily() {
+      if (!fullscreen) return;
+      videoWrap.classList.add('show-controls');
+      clearTimeout(controlsTimer);
+      controlsTimer = setTimeout(() => {
+        videoWrap.classList.remove('show-controls');
+      }, 3000);
+    }
+    videoWrap.addEventListener('mousemove', showControlsTemporarily);
+
+    // ── Help ───────────────────────────────────────────────────
+    const helpModal = $('helpModal');
+    $('helpBtn').addEventListener('click', () => helpModal.classList.toggle('hidden'));
+    $('closeHelp').addEventListener('click', () => helpModal.classList.add('hidden'));
+    helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.add('hidden'); });
+
+    // ── Keyboard ───────────────────────────────────────────────
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      const k = e.key;
+      if (k === ' ' || k === 'Spacebar') {
+        e.preventDefault();
+        togglePlay();
+        showToast(video.paused ? 'Pausado' : 'Reanudado');
+      } else if (k === 'm' || k === 'M') {
+        $('muteBtn').click();
+        showToast(video.muted ? 'Silenciado' : 'Audio activo');
+      } else if (k === 'f' || k === 'F') {
+        toggleFullscreen();
+      } else if (k === 'c' || k === 'C') {
+        $('toggleBtn').click();
+        showToast(collapsed ? 'Canales ocultos' : 'Canales visibles');
+      } else if (k === '?' || (k === '/' && e.shiftKey)) {
+        helpModal.classList.toggle('hidden');
+      } else if (k === 'Escape') {
+        helpModal.classList.add('hidden');
+      } else if (k === 'ArrowDown' || k === 'ArrowRight') {
+        e.preventDefault();
+        if (streams.length) playIndex((currentIdx + 1) % streams.length);
+      } else if (k === 'ArrowUp' || k === 'ArrowLeft') {
+        e.preventDefault();
+        if (streams.length) playIndex((currentIdx - 1 + streams.length) % streams.length);
+      } else if (/^[1-9]$/.test(k)) {
+        const n = parseInt(k, 10) - 1;
+        if (n < streams.length) playIndex(n);
+      }
+    });
+
+    // ── Go ─────────────────────────────────────────────────────
+    loadStreams();
+  </script>
+</body>
+</html>
