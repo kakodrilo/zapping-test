@@ -314,9 +314,13 @@ Con `MaxOpenConns(10)`, el peor caso es 10 conexiones × ~400 KB de buffers por 
 
 Requiere `openssl`. Ejecutar desde la **raíz del proyecto** según el sistema operativo:
 
-**Linux / macOS:**
+**Linux / macOS / WSL:**
 ```bash
-sh certs/generate.sh
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/key.pem \
+  -out    certs/cert.pem \
+  -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
 ```
 
 **Windows — Git Bash** (viene con [Git for Windows](https://git-scm.com/download/win)):
@@ -326,11 +330,6 @@ MSYS_NO_PATHCONV=1 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -out    certs/cert.pem \
   -subj   "/C=AR/ST=Local/L=Local/O=Zapping/CN=localhost" \
   -addext "subjectAltName=IP:127.0.0.1,DNS:localhost"
-```
-
-**Windows — WSL:**
-```bash
-sh certs/generate.sh
 ```
 
 **Windows — sin Git Bash ni WSL** (usando Docker directamente):
