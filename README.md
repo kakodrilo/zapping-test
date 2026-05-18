@@ -15,6 +15,7 @@ Plataforma de livestreaming HLS simulado con autenticación JWT, construida en G
 7. [Gestión de memoria RAM](#7-gestión-de-memoria-ram)
 8. [Setup desde cero](#8-setup-desde-cero)
 9. [Agregar un nuevo stream](#9-agregar-un-nuevo-stream)
+10. [Pruebas unitarias](#10-pruebas-unitarias)
 
 ---
 
@@ -521,3 +522,98 @@ docker exec -it livestream_db mysql -u appuser -papppassword livestream_app \
 # Ver logs del servicio Go
 docker logs livestream_app --tail 20
 ```
+
+---
+
+## 10. Pruebas unitarias
+
+### Alcance
+
+Las pruebas cubren exclusivamente la **capa de use cases**, que contiene toda la lógica de negocio del sistema. No se testea infraestructura (MySQL, NGINX, JWT), sino el comportamiento de cada caso de uso de forma aislada.
+
+```
+backend/internal/usecase/
+├── authuc/
+│   ├── service.go
+│   └── service_test.go   ← 8 tests
+└── streamuc/
+    ├── service.go
+    ├── state.go
+    └── service_test.go   ← 13 tests
+```
+
+### Estrategia: mocks sobre interfaces de `port/`
+
+La Clean Architecture hace que los use cases dependan únicamente de interfaces (`port.UserRepository`, `port.TokenService`, `port.MediaClient`, etc.), nunca de implementaciones concretas. Los tests aprovechan esto: cada dependencia externa se reemplaza por un struct mock que implementa la misma interfaz, sin necesidad de librerías externas.
+
+```
+AuthService ──► mockUserRepo   (implementa port.UserRepository)
+            └─► mockTokenSvc   (implementa port.TokenService)
+
+StreamService ──► mockStreamRepo   (implementa port.StreamRepository)
+              ├─► mockSegmentRepo  (implementa port.SegmentRepository)
+              └─► mockMediaClient  (implementa port.MediaClient)
+```
+
+Ningún test requiere base de datos, red, ni Docker.
+
+### Casos cubiertos
+
+#### `authuc` — Registro, Login, Refresh
+
+| Test | Escenario |
+|---|---|
+| `TestRegister_MissingFields` | Cualquier campo vacío devuelve `ErrMissingFields` (3 sub-casos) |
+| `TestRegister_EmailTaken` | El repositorio propaga `ErrEmailTaken` |
+| `TestRegister_Success` | Credenciales completas → registro exitoso |
+| `TestLogin_UserNotFound` | Email inexistente → `ErrInvalidCreds` |
+| `TestLogin_WrongPassword` | Password incorrecto → `ErrInvalidCreds` |
+| `TestLogin_Success` | Credenciales correctas → token retornado |
+| `TestRefresh_Success` | Delega al `TokenService` y retorna el nuevo token |
+| `TestRefresh_TokenServiceError` | Error de firma propagado al caller |
+
+#### `streamuc` — LoadAll, ListAll, GetPlaylist, ProxySegment
+
+| Test | Escenario |
+|---|---|
+| `TestLoadAll_RepoError` | Error fatal en `StreamRepository` → se propaga, count=0 |
+| `TestLoadAll_AllStreamsLoaded` | Todos los streams cargan correctamente → count correcto |
+| `TestLoadAll_PerStreamWarning` | Un stream falla → warning sin error fatal, count reducido |
+| `TestLoadAll_SeedsFromMediaWhenSegmentsAbsent` | Sin segmentos en DB → llama a `FetchM3U8` y los siembra |
+| `TestListAll_Success` | Delega a `StreamRepository.ListActive` |
+| `TestListAll_RepoError` | Error del repositorio propagado |
+| `TestGetPlaylist_NotFound` | Stream no cargado en memoria → `ErrNotFound` |
+| `TestGetPlaylist_Success` | `startedAt = now` → ventana en posición [0,1,2], `MediaSequence=0` |
+| `TestGetPlaylist_WindowRotates` | 25s transcurridos → ventana rotada a [2,0,1], primer segmento = `seg2.ts` |
+| `TestGetPlaylist_SegmentRepoError` | `GetByPositions` falla → error propagado |
+| `TestProxySegment_NotFound` | Stream sin path registrado → `ErrNotFound` |
+| `TestProxySegment_Success` | Delega a `MediaClient.StreamSegment` sin error |
+| `TestProxySegment_MediaClientError` | NGINX falla → error propagado al caller |
+
+### Cómo ejecutar
+
+Desde la raíz del proyecto:
+
+```bash
+# Todos los use cases
+go test -C backend ./internal/usecase/...
+
+# Con salida detallada
+go test -C backend ./internal/usecase/... -v
+
+# Un paquete específico
+go test -C backend ./internal/usecase/authuc/
+go test -C backend ./internal/usecase/streamuc/
+
+# Con reporte de cobertura
+go test -C backend ./internal/usecase/... -cover
+```
+
+Salida esperada:
+
+```
+ok  zapping-test-service/internal/usecase/authuc    0.456s
+ok  zapping-test-service/internal/usecase/streamuc  0.345s
+```
+
+Los tests no requieren Docker, base de datos ni variables de entorno — corren en cualquier máquina con Go instalado.
